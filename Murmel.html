@@ -40,7 +40,7 @@ button{font:inherit; color:var(--txt); border:none; cursor:pointer; background:t
 .btn.accent{background:var(--accA,rgba(255,255,255,.06)); border-color:var(--accB,var(--lineS)); color:var(--acc,var(--txt));}
 .btn.ghost{border-color:transparent; color:var(--mut);}
 .btn.danger{color:#FF7A70; border-color:rgba(255,69,58,.25);}
-.btn:active{transform:scale(.97);} button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #0A84FF;outline-offset:2px;}
+.btn:active{transform:scale(.97);}
 .chip{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600;
   padding:4px 10px; border-radius:999px; border:1px solid var(--line); color:var(--mut);}
 .dot{width:7px; height:7px; border-radius:50%;}
@@ -74,12 +74,17 @@ input::placeholder{color:var(--dim);}
 .seg button{flex:1; min-height:42px; border-radius:10px; font-weight:600; color:var(--dim); font-size:13px; letter-spacing:.02em;}
 .seg button.on{background:rgba(255,255,255,.06); color:var(--txt);}
 /* tab bar */
-#tabs{position:fixed; left:0; right:0; bottom:0; background:rgba(8,9,11,.88); backdrop-filter:blur(20px);
-  border-top:1px solid var(--line); display:flex; padding:8px 6px calc(8px + env(safe-area-inset-bottom)); z-index:50;}
-#tabs button{flex:1; min-height:52px; color:var(--dim); font-size:9px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
-  display:flex; flex-direction:column; align-items:center; gap:4px; border-radius:12px;}
-#tabs button.on{color:var(--txt);}
-#tabs svg{display:block;}
+#tabs{position:fixed; left:0; right:0; bottom:0; background:rgba(8,9,11,.92); backdrop-filter:blur(24px);
+  border-top:1px solid var(--line); display:flex; padding:6px 4px calc(6px + env(safe-area-inset-bottom)); z-index:50;}
+#tabs button{flex:1; min-height:54px; color:var(--dim); font-size:9px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; border-radius:14px;
+  transition:color .18s, background .18s; position:relative; padding:4px 2px;}
+#tabs button.on{color:var(--txt); background:rgba(255,255,255,.055);}
+#tabs button.on::after{content:''; position:absolute; bottom:4px; left:50%; transform:translateX(-50%);
+  width:18px; height:3px; border-radius:2px; background:var(--acc);}
+#tabs svg{display:block; transition:transform .18s;}
+#tabs button.on svg{transform:scale(1.12);}
+#tabs .tab-label{line-height:1;}
 /* rest timer */
 #timer{position:fixed; left:10px; right:10px; bottom:calc(82px + env(safe-area-inset-bottom));
   background:rgba(13,15,18,.97); border:1px solid var(--lineS); border-radius:18px; padding:13px 14px;
@@ -181,6 +186,37 @@ svg{max-width:100%;}
 .ach span{font-size:11px; color:var(--mut);}
 .quest{border:1px solid rgba(10,132,255,.3); background:rgba(10,132,255,.06); border-radius:14px; padding:14px;}
 .quest.done{border-color:rgba(48,209,88,.4); background:rgba(48,209,88,.08);}
+/* v1.9 UX */
+.greeting{padding:14px 16px 12px; background:linear-gradient(135deg,rgba(255,255,255,.025),rgba(255,255,255,.01)); border:1px solid var(--line); border-radius:18px; margin-bottom:14px;}
+.greeting .day{font-size:12px; color:var(--mut); font-weight:600; text-transform:uppercase; letter-spacing:.06em;}
+.greeting .name{font-size:22px; font-weight:700; margin:2px 0 6px; line-height:1.2;}
+.greeting .sub{font-size:13px; color:var(--mut);}
+.week-dots{display:flex; gap:7px; align-items:center; margin-top:10px;}
+.week-dot{width:28px; height:28px; border-radius:50%; border:1.5px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:700; color:var(--dim); transition:all .2s;}
+.week-dot.done{background:var(--acc); border-color:var(--acc); color:#fff;}
+.week-dot.today{border-color:var(--txt); color:var(--txt);}
+.week-dot.done.today{box-shadow:0 0 0 2px rgba(255,255,255,.2);}
+.recovery-pill{display:inline-flex; align-items:center; gap:5px; background:rgba(48,209,88,.1); border:1px solid rgba(48,209,88,.25); border-radius:999px; padding:4px 10px; font-size:12px; color:#5ED27F; margin-top:8px;}
+.empty-state{text-align:center; padding:40px 20px;}
+.empty-state svg{opacity:.35; margin-bottom:12px;}
+.empty-state .empty-title{font-size:16px; font-weight:600; margin-bottom:6px;}
+.empty-state .empty-sub{font-size:13px; color:var(--mut);}
+.ex-chips{display:flex; gap:6px; overflow-x:auto; padding:10px 0 2px; -webkit-overflow-scrolling:touch; scrollbar-width:none; flex-shrink:0;}
+.ex-chips::-webkit-scrollbar{display:none;}
+.ex-chip{flex-shrink:0; padding:5px 12px; border-radius:999px; border:1.5px solid var(--line); font-size:12px; font-weight:600; color:var(--mut); white-space:nowrap; transition:all .15s; cursor:pointer;}
+.ex-chip.done-chip{border-color:rgba(48,209,88,.4); color:var(--legs); background:rgba(48,209,88,.08);}
+.ex-chip.active-chip{border-color:var(--acc); color:var(--acc); background:var(--accA);}
+.delta-badge{font-size:11px; padding:1px 6px; border-radius:6px; font-weight:700; margin-left:4px;}
+.delta-up{background:rgba(48,209,88,.15); color:#5ED27F;}
+.delta-same{background:rgba(255,255,255,.07); color:var(--mut);}
+.delta-down{background:rgba(255,69,58,.15); color:#FF8A82;}
+#settingsTab .backup-dot{position:absolute; top:6px; right:calc(50% - 14px); width:7px; height:7px; border-radius:50%; background:#FF453A; display:none;}
+#settingsTab.backup-due .backup-dot{display:block;}
+.ability-item{padding:10px 0; border-bottom:1px solid var(--line);}
+.ability-item:last-child{border-bottom:none;}
+.ability-item.unlocked{opacity:1;}
+.ability-item.available{background:rgba(232,197,71,.05); border-radius:10px; padding:10px; margin:-2px -4px; border:1px solid rgba(232,197,71,.2); border-bottom:1px solid rgba(232,197,71,.2);}
+.ability-item.locked{opacity:.5;}
 .streak-flames{font-size:20px; letter-spacing:1px;}
 .skinrow{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
 .skinbtn{border:1px solid var(--line); border-radius:11px; padding:8px 12px; font-size:13px; font-weight:600; color:var(--mut); background:transparent;}
@@ -214,12 +250,25 @@ svg{max-width:100%;}
   <button class="btn accent t-pull" onclick="timerStop(false)">Weiter</button>
 </div><div id="tbar"><div id="tfill"></div></div></div>
 <div id="tabs">
-  <button data-v="home" onclick="go('home')"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M13 2 5 13h6l-2 9 8-13h-6z"/></svg>Start</button>
-  <button data-v="history" onclick="go('history')"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Verlauf</button>
-  <button data-v="charts" onclick="go('charts')"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><polyline points="4 17 9 11 13 14 20 6"/><path d="M4 21h16" opacity=".35"/></svg>Charts</button>
-  <button data-v="report" onclick="go('report')"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><rect x="4" y="5" width="16" height="16" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Report</button>
-  <button data-v="marble" onclick="go('marble')"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M7 9a6 6 0 0 1 7 1" stroke-width="1.3" stroke-linecap="round" opacity=".5"/></svg>Murmel</button>
-  <button data-v="settings" onclick="go('settings')"><svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 8h3M12 8h8M4 16h8M17 16h3"/><circle cx="9.5" cy="8" r="2.2"/><circle cx="14.5" cy="16" r="2.2"/></svg>Mehr</button>
+  <button data-v="home" onclick="go('home')">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12L12 4l9 8"/><path d="M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"/></svg>
+    <span class="tab-label">Home</span></button>
+  <button data-v="history" onclick="go('history')">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/></svg>
+    <span class="tab-label">Verlauf</span></button>
+  <button data-v="charts" onclick="go('charts')">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9l4 4 4-6 4 3 4-5"/><path d="M4 19h16" opacity=".4"/></svg>
+    <span class="tab-label">Charts</span></button>
+  <button data-v="report" onclick="go('report')">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+    <span class="tab-label">Report</span></button>
+  <button data-v="marble" onclick="go('marble')">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.5"/><path d="M8 9.5a5 5 0 016.5 1" stroke-width="1.4" stroke-linecap="round" opacity=".55"/><path d="M9 14a4 4 0 005.5 1.5" stroke-width="1.2" stroke-linecap="round" opacity=".35"/></svg>
+    <span class="tab-label">Murmel</span></button>
+  <button data-v="settings" onclick="go('settings')" id="settingsTab">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="2.8"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    <span class="backup-dot"></span>
+    <span class="tab-label" id="settingsLabel">Mehr</span></button>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -520,15 +569,15 @@ function importBodyCsv(text){
     const parsed=dedupExact(importRenphoCsv(text));
     const daily=pickMorningPerDay(parsed);
     mergeMetrics(daily);
-    return {fmt, raw:parsed.length, days:daily.length, skipped:Math.max(0,parsed.length-daily.length)};
+    return {fmt, raw:parsed.length, days:daily.length};
   }
   if (fmt==="ultrahuman"){
     const parsed=dedupExact(importUltrahumanCsv(text));
     const daily=pickMorningPerDay(parsed);
     mergeMetrics(daily);
-    return {fmt, raw:parsed.length, days:daily.length, skipped:Math.max(0,parsed.length-daily.length)};
+    return {fmt, raw:parsed.length, days:daily.length};
   }
-  return {fmt:"unknown", raw:0, days:0, error:"Unsupported CSV format"};
+  return {fmt:"unknown", raw:0, days:0};
 }
 
 const sortedSessions = () => [...S.sessions].sort((a,b)=> a.date<b.date?1:a.date>b.date?-1:0);
@@ -801,6 +850,8 @@ let _enterView=false;
 function go(v, arg){ view=v; viewArg=arg; finishAsk=false; _enterView=true; render(); }
 function render(){
   document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on", b.dataset.v===view || (view==="session"&&b.dataset.v==="home") || (view==="sessionDetail"&&b.dataset.v==="history") || (view==="exEdit"&&b.dataset.v==="settings")));
+  /* v1.9: backup-due dot on settings tab */
+  const stab=$("settingsTab"); if(stab) stab.classList.toggle("backup-due", backupOverdue());
   const fn = { home:vHome, session:vSession, history:vHistory, sessionDetail:vDetail, sessionReport:vSessionReport, charts:vCharts, report:vReport, marble:vMarble, settings:vSettings, exEdit:vExEdit }[view] || vHome;
   $("app").innerHTML = (memOnly?'<div class="warn">Speicher nicht verfügbar – Daten gehen beim Schließen verloren.</div>':"") + fn();
   if (view==="session" && S.draft){ acquireWake(); startSessTimer(); }
@@ -828,22 +879,62 @@ function ring(done, goal){
 }
 function vHome(){
   const wb = weekBounds(todayStr());
-  /* Nur Sessions bis heute zählen – Zukunftsdaten ausgeschlossen */
   const done = S.sessions.filter(s=>s.date>=wb.mon && s.date<=wb.sun && s.date<=todayStr()).length;
   const goal = S.settings.weeklyGoal;
   const bwLog = [...S.bodyweight.log].sort((a,b)=>a.date<b.date?1:-1);
-  const bw = bwLog[0];
+  const bw = bwLog[0], prevBw = bwLog[1];
   const due = dueType();
+
+  /* Greeting */
+  const now = new Date();
+  const hour = now.getHours();
+  const greet = hour<12 ? "Guten Morgen" : hour<17 ? "Guten Tag" : "Guten Abend";
+  const dayNames = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
+  const dayName = dayNames[now.getDay()];
+
+  /* Week dots Mo–So */
+  const weekDayLabels = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+  const weekDots = weekDayLabels.map((label, i) => {
+    const dotDate = addDays(wb.mon, i);
+    const hasSess = S.sessions.some(s=>s.date===dotDate);
+    const isToday = dotDate===todayStr();
+    const cls = [hasSess?"done":"", isToday?"today":""].filter(Boolean).join(" ");
+    return `<div class="week-dot ${cls}">${hasSess?"✓":label}</div>`;
+  }).join("");
+
+  /* Recovery hint from Ultrahuman data */
+  const todayMetric = S.bodyweight.metrics.find(m=>m.date===todayStr());
+  const yestMetric = S.bodyweight.metrics.find(m=>m.date===addDays(todayStr(),-1));
+  const recMetric = todayMetric||yestMetric;
+  const recHint = recMetric?.recoveryScore!=null
+    ? `<div class="recovery-pill">⚡ Recovery ${recMetric.recoveryScore}${recMetric.hrv!=null?" · HRV "+recMetric.hrv:""} — ${recMetric.recoveryScore>=80?"Guter Tag für "+TYPES[due].label:recMetric.recoveryScore>=60?"Moderates Training ok":"Leichter Tag empfohlen"}</div>`
+    : "";
+
+  /* BW delta */
+  const bwDelta = (bw && prevBw) ? bw.kg - prevBw.kg : null;
+  const bwDeltaHtml = bwDelta!=null
+    ? `<span class="delta-badge ${bwDelta<-0.05?"delta-up":bwDelta>0.05?"delta-down":"delta-same"}">${bwDelta>0?"+":""}${fmt(bwDelta)} kg</span>`
+    : "";
+
   const typeCards = Object.keys(TYPES).map(t=>{
     const last = sortedSessions().find(s=>s.type===t);
-    return `<div class="card typecard ${TYPES[t].cls}" onclick="startSession('${t}')">
+    const isDue = t===due && !S.draft;
+    return `<div class="card typecard ${TYPES[t].cls} ${isDue?"due-card":""}" onclick="startSession('${t}')">
       <div class="row"><div class="grow">
-        <div class="tname"><span class="dot"></span>${TYPES[t].label}${t===due&&!S.draft?'<span class="duebadge">heute dran</span>':""}</div>
+        <div class="tname"><span class="dot"></span>${TYPES[t].label}${isDue?'<span class="duebadge">heute dran</span>':""}</div>
         <div class="mut" style="margin-top:3px">${S.plan[t].length} Übungen · zuletzt ${last?dShort(last.date):"–"}</div>
       </div><button class="btn accent">Starten</button></div></div>`;
   }).join("");
-  return `<h1>PPL Tracker</h1><p class="sub">Push · Pull · Legs</p>
-  ${backupOverdue()?`<div class="backup"><div class="grow">Lange kein Backup. Sichere deine Daten als JSON.</div><button onclick="go('settings')">Sichern</button></div>`:""}
+
+  return `
+  <div class="greeting">
+    <div class="day">${dayName}</div>
+    <div class="name">${greet}, Mauricio 👋</div>
+    <div class="sub">${done}/${goal} Sessions diese Woche · ${TYPES[due].label} wäre als nächstes dran</div>
+    <div class="week-dots">${weekDots}</div>
+    ${recHint}
+  </div>
+  ${backupOverdue()?`<div class="backup"><div class="grow">Lange kein Backup — Daten sichern.</div><button onclick="go('settings')">Sichern</button></div>`:""}
   ${(()=>{ const rc=weekRecap(computeGami()); return rc.show ? `<div class="card t-legs" style="border-color:var(--accB)">
       <div class="lbl">Wochenrückblick · ${rc.label}</div>
       <div class="quote" style="text-align:left; margin:6px 0 10px">„${rc.sessions>=rc.goal?"Wochenziel geschafft – stark, Murmel!":rc.sessions>0?"Solide Woche. Weiter dranbleiben!":"Neue Woche, neue Chance."}"</div>
@@ -855,17 +946,13 @@ function vHome(){
   ${S.draft ? `<div class="card ${TYPES[S.draft.type].cls}" style="border-color:var(--accB)">
       <div class="row"><div class="grow"><b>Laufende ${TYPES[S.draft.type].label}-Session</b><div class="mut">${dLong(S.draft.date)}</div></div>
       <button class="btn accent" onclick="go('session')">Fortsetzen</button></div></div>` : ""}
-  <div class="card"><div class="row">
-    <div class="grow"><div class="lbl">Diese Woche</div>
-      <div style="font-size:15px; margin-top:4px"><b class="num">${done}</b> von <b class="num">${goal}</b> Sessions</div>
-      <div class="mut num" style="margin-top:2px">Mo ${dShort(wb.mon)} – So ${dShort(wb.sun)}</div></div>
-    ${ring(done, goal)}</div></div>
   ${typeCards}
   <h2>Körpergewicht</h2>
   <div class="card">
     <div class="row"><div class="grow">
       <b class="num" style="font-size:26px; font-weight:700">${bw?fmt(bw.kg):"–"} <span style="font-size:14px; color:var(--mut)">kg</span></b>
-      <div class="mut num">Ziel ${fmt(S.bodyweight.goalKg)} kg · noch ${bw?fmt(Math.max(0,bw.kg-S.bodyweight.goalKg)):"–"} kg</div>
+      ${bwDeltaHtml}
+      <div class="mut num" style="margin-top:4px">Ziel ${fmt(S.bodyweight.goalKg)} kg · noch ${bw?fmt(Math.max(0,bw.kg-S.bodyweight.goalKg)):"–"} kg</div>
     </div></div>
     <div class="row" style="margin-top:12px">
       <input type="number" inputmode="decimal" step="0.1" id="bwIn" placeholder="z.B. 90,4" class="grow">
@@ -922,12 +1009,13 @@ function vSession(){
     const pl = sec ? {plateau:false,deload:false} : plateauInfo(e.exerciseId);
     const plHint = pl.deload ? `<div class="hint hold">🔁 Plateau: ${pl.sessions}× kein neuer Höchstwert – Deload sinnvoll.</div>`
       : pl.plateau ? `<div class="hint hold">⚠ Stagnation: seit ${pl.sessions} Sessions kein neuer Höchstwert.</div>` : "";
-    return `<div class="card ${T.cls}"${anchor}>
+    return `<div class="card ${T.cls}"${anchor} data-ei="${ei}">
       <div class="row" style="align-items:flex-start"><div class="grow">
         <b>${esc(ex.name)}</b>
         ${ex.perSide?'<span class="badge">pro Seite</span>':""}
         ${sec?'<span class="badge">Sekunden</span>':""}
         ${ex.muscle&&MUSCLES[ex.muscle]?`<span class="badge">${MUSCLES[ex.muscle].name}</span>`:""}
+        ${!sec && e.sets[0]?.kg ? weightDeltaHtml(e.exerciseId, e.sets[0].kg) : ""}
         <div class="mut" style="margin-top:3px">${sec?"+"+ex.increment+"s Progression":"Ziel "+ex.repMin+"–"+ex.repMax+" Reps · Schritt "+fmt(ex.increment)+" kg"}</div>
         ${lastDetail?`<details class="lastblock"><summary>Letztes Mal anzeigen ▾</summary><div class="lastdetail">${lastDetail}</div></details>`:""}
       </div>
@@ -960,13 +1048,22 @@ function vSession(){
           <button class="btn grow" onclick="doFinish('all')">Alle speichern</button></div>
         <button class="btn full ghost" style="margin-top:8px" onclick="finishAsk=false;render()">Zurück</button></div>`
     : `<button class="btn full accent ${T.cls}" style="min-height:56px" onclick="finishSession()">Session abschließen</button>`;
+  /* v1.9: Sticky exercise chips */
+  const chips = d.entries.map((e,ei)=>{
+    const ex=S.exercises[e.exerciseId];
+    const allDone=e.sets.every(s=>s.done);
+    const hasDone=e.sets.some(s=>s.done);
+    const cls = allDone?"done-chip":hasDone?"active-chip":"";
+    return `<div class="ex-chip ${cls}" onclick="document.querySelector('[data-ei=\\'${ei}\\']')?.scrollIntoView({behavior:'smooth',block:'start'})">${allDone?"✓ ":""}${esc(ex.name)}</div>`;
+  }).join("");
   return `<div class="row" style="margin-bottom:6px">
     <h1 class="grow" style="color:${T.color}">${T.label}</h1>
     <button class="btn ghost danger" onclick="cancelDraft()">Abbrechen</button></div>
-  <div class="row" style="margin-bottom:14px">
+  <div class="row" style="margin-bottom:8px">
     <input type="date" value="${d.date}" onchange="S.draft.date=this.value; save();" style="max-width:160px">
     <span class="grow"></span>
     <span class="sesstimer">⏱ <span id="sessDur" class="num">${d.startedAt?fmtDur(Date.now()-d.startedAt):"0:00"}</span></span></div>
+  <div class="ex-chips">${chips}</div>
   ${cards}
   <button class="btn full" onclick="openAddSheet()" style="margin-bottom:12px">+ Übung hinzufügen</button>
   ${finishUi}`;
@@ -1124,11 +1221,41 @@ function doFinish(mode){
   S.sessions.push({ id:newId, type:d.type, date:d.date, entries, durationMin:durMin });
   S.draft=null; finishAsk=false; save(); timerStop(false); releaseWake(); stopSessTimer();
   const hl=sessionHighlights(newId);
+  /* v1.8: Kontext-Easter-Eggs prüfen und einlösen */
+  const newSession = S.sessions.find(s=>s.id===newId);
+  if(newSession){
+    const eggs = checkContextEggs(newSession);
+    let xpEarned = 0;
+    for(const egg of eggs){
+      if(egg.xp && !S.gami.milestonesSeen[egg.key]){ xpEarned+=egg.xp; }
+      claimContextEgg(egg);
+    }
+    if(eggs.length){
+      const topEgg = eggs[0];
+      setTimeout(()=>{ toast(`${topEgg.ico} ${topEgg.text.slice(0,60)}${eggs.length>1?" (+"+( eggs.length-1)+" mehr)":""}`); }, 600);
+      if(xpEarned) setTimeout(()=>{ toast(`+${xpEarned} Bonus-XP kassiert! ⭐`); }, 2200);
+    }
+  }
   go("sessionReport", newId);
   if (hl.prs.length){ if(navigator.vibrate&&S.settings.vibration) navigator.vibrate([120,60,120]); setTimeout(spawnConfetti, 250); }
 }
 
-/* ---------- HISTORY ---------- */
+/* ================= v1.9 HELFER ================= */
+function emptyState(title, sub, cta=""){
+  /* Kleine traurige Murmel als SVG */
+  const svg=`<svg width="80" height="80" viewBox="0 0 80 80"><defs><radialGradient id="eg" cx="36%" cy="30%" r="78%"><stop offset="0%" stop-color="rgba(255,255,255,.35)"/><stop offset="22%" stop-color="#8A929B"/><stop offset="100%" stop-color="#474D54"/></radialGradient></defs><ellipse cx="40" cy="76" rx="24" ry="4" fill="#000" opacity=".28"/><circle cx="40" cy="40" r="32" fill="url(#eg)"/><circle cx="40" cy="40" r="32" fill="url(#eg)" opacity=".4"/><ellipse cx="30" cy="34" rx="5" ry="5" fill="#fff" opacity=".9"/><ellipse cx="50" cy="34" rx="5" ry="5" fill="#fff" opacity=".9"/><circle cx="30" cy="35" r="2.5" fill="#474D54"/><circle cx="50" cy="35" r="2.5" fill="#474D54"/><path d="M32 50 Q40 46 48 50" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".6"/></svg>`;
+  return `<div class="empty-state">${svg}<div class="empty-title">${title}</div><div class="empty-sub">${sub}</div>${cta?`<div style="margin-top:16px">${cta}</div>`:""}</div>`;
+}
+
+function weightDeltaHtml(exId, suggestedKg){
+  const last = lastEntryFor(exId); if(!last) return "";
+  const lastKg = last.entry.sets[0]?.kg; if(!lastKg) return "";
+  const delta = suggestedKg - lastKg;
+  if(Math.abs(delta)<0.01) return `<span class="delta-badge delta-same">= wie letztes Mal</span>`;
+  return `<span class="delta-badge ${delta>0?"delta-up":"delta-down"}">${delta>0?"+":""}${fmt(delta)} kg vs. letztes Mal</span>`;
+}
+
+/* ================= HISTORY ---------- */
 function vHistory(){
   const items = sortedSessions().map(s=>{
     const T=TYPES[s.type];
@@ -1138,8 +1265,9 @@ function vHistory(){
         <div class="mut num">${s.entries.length} Übungen · ${fmt(sessionVolume(s))} kg${s.durationMin?" · "+s.durationMin+" min":""}</div></div>
       <div class="mut">›</div></div>`;
   }).join("");
+  const empty = emptyState("Noch keine Sessions", "Starte dein erstes Training — Murmel wartet.", `<button class="btn accent" onclick="go('home')">Zur Startseite</button>`);
   return `<h1>Verlauf</h1><p class="sub">${S.sessions.length} Sessions gesamt</p>
-    <div class="card">${items || '<div class="mut">Noch keine Sessions.</div>'}</div>`;
+    ${items ? `<div class="card">${items}</div>` : empty}`;
 }
 function vDetail(){
   const s = S.sessions.find(x=>x.id===viewArg); if(!s) return vHistory();
@@ -1206,6 +1334,8 @@ function vCharts(){
     <button class="${chartTab==="bw"?"on":""}" onclick="chartTab='bw';render()">Körper</button></div>`;
   let body="";
   if (chartTab==="ex"){
+    if(!S.sessions.length){ body=emptyState("Noch keine Daten","Trainiere ein paar Sessions — dann erscheinen hier deine Fortschrittskurven."); }
+    else {
     const opts = Object.keys(S.exercises).map(id=>`<option value="${id}" ${id===chartEx?"selected":""}>${esc(S.exercises[id].name)}</option>`).join("");
     const ex=S.exercises[chartEx]; const sec=ex.unit==="seconds";
     const pts=[], e1pts=[];
@@ -1232,6 +1362,7 @@ function vCharts(){
           <span class="dot" style="background:var(--gold)"></span>&nbsp;e1RM ${showE1rm?"ausblenden":"einblenden"}</button></div>
       <p class="mut small" style="margin:8px 0 0">e1RM = geschätztes 1-Wiederholungs-Maximum (Epley: kg × (1 + Reps/30)). Steigt es bei gleichem Gewicht, wirst du stärker, auch ohne Gewichtserhöhung.</p>`}
       </div>`;
+    } /* end else no-sessions-guard */
   }
   if (chartTab==="vol"){
     const weeks={};
@@ -1672,7 +1803,6 @@ function computeGami(){
   for (const st of STATES) if (recent>=st.min) state=st;
   return { total, totals, per:per.reverse(), rank, next, prog, state, recent };
 }
-/* ---------- v1.5: weitere Gamification-Bausteine ---------- */
 const SEASON_EPOCH = "2026-06-01"; /* Montag */
 function weeksMap(){ const m={}; for(const s of S.sessions){ if(s.date>todayStr()) continue; const w=isoWeek(s.date); m[w]=(m[w]||0)+1; } return m; }
 function consistencyScore(){
@@ -1710,7 +1840,7 @@ function seasonInfo(g){
   let pts=0; for(const p of g.per){ if(p.date>=start && p.date<=end) pts+=p.pts; }
   return {num:sIdx+1, start, end, daysLeft:Math.max(1,daysLeft), pts};
 }
-function achievementsList(g){
+function achievementsList(g=computeGami()){
   const sess=S.sessions.filter(s=>s.date<=todayStr()); const n=sess.length;
   const legPress100=sess.some(s=>s.entries.some(e=>e.exerciseId==="beinpresse"&&e.sets.some(x=>(x.kg||0)>=100)));
   const plank60=sess.some(s=>s.entries.some(e=>{const ex=S.exercises[e.exerciseId];return ex&&ex.unit==="seconds"&&e.sets.some(x=>(x.seconds||0)>=60);}));
@@ -1735,7 +1865,7 @@ function achievementsList(g){
     {key:"goal85",ico:"🎯",name:"Ziel "+fmt(S.bodyweight.goalKg)+" kg",desc:"Geschafft!",un:reached,egg:true},
   ];
 }
-function weeklyQuest(g){
+function weeklyQuest(g=computeGami()){
   const wk=isoWeek(todayStr());
   const pool=[
     {key:"improve3",name:"Steigere 3 Übungen",desc:"Bei 3 Übungen mehr als zuletzt schaffen.",target:3},
@@ -1774,7 +1904,7 @@ function weekRecap(g){
   return {show:(dow===0||dow===1), label, sessions:ps.length,
     pts:ps.reduce((a,p)=>a+p.pts,0), prs:Math.round(ps.reduce((a,p)=>a+p.bd.pr/25,0)), goal:S.settings.weeklyGoal};
 }
-function skinsUnlocked(g){
+function skinsUnlocked(g=computeGami()){
   const ach=achievementsList(g); const has=k=>{const a=ach.find(x=>x.key===k);return a&&a.un;};
   return {
     none:{name:"Klassisch", un:true, hint:""},
@@ -1783,6 +1913,246 @@ function skinsUnlocked(g){
     glow:{name:"Glow", un:has("streak3"), hint:"3-Wochen-Streak"},
   };
 }
+
+/* ================= v1.8: XP-ERWEITERUNGEN ================= */
+
+/* Bonus-XP aus Sessions (Sätze, RIR, Konsistenz) */
+function sessionXpBonus(){
+  const sess=[...S.sessions].filter(s=>s.date<=todayStr());
+  let xp=0;
+  const weekMap={};
+  for(const s of sess){
+    for(const e of s.entries){
+      for(const st of (e.sets||[])){
+        if(st.done) xp+=5;                     /* +5 pro abgeschlossenem Satz */
+        if(st.rir!=null) xp+=5;               /* +5 pro RIR-Eintrag */
+      }
+    }
+    const wk=isoWeek(s.date); weekMap[wk]=(weekMap[wk]||0)+1;
+  }
+  /* Wochenkonsistenz-Boni */
+  for(const cnt of Object.values(weekMap)){
+    if(cnt>=5) xp+=100;
+    else if(cnt>=4) xp+=50;
+    else if(cnt>=3) xp+=30;
+  }
+  /* Körpergewicht-Einträge */
+  xp += S.bodyweight.log.length * 10;
+  /* RENPHO-Import-Tage */
+  xp += S.bodyweight.metrics.filter(m=>m.source==="renpho").length * 15;
+  /* Gespeicherte Bonus-XP (Easter Eggs, Milestones) */
+  xp += (S.gami.xpBonus||0);
+  return xp;
+}
+
+/* Haupt-XP = bestehendes g.total + Bonus */
+function totalXp(g){ return g.total + sessionXpBonus(); }
+
+/* ---- FÄHIGKEITEN-BAUM ---- */
+const ABILITY_TREES = [
+  { key:"kraft", label:"Kraft", icon:"🔴", color:"var(--push)",
+    abilities:[
+      { key:"eisenfaust", name:"Eisenfaust", xp:500,  cond:(g,stats)=>stats.pushCount>=10,
+        condLabel:"10 Push-Sessions", cosm:"bandage", func:"PR-Verlauf im Chart sichtbar" },
+      { key:"kraftwerk",  name:"Kraftwerk",  xp:1500, cond:(g,stats)=>stats.pushCount>=25,
+        condLabel:"25 Push-Sessions", cosm:"belt", func:"Coach-Plateau-Warnung früher" },
+      { key:"titan",      name:"Titan",      xp:4000, cond:(g,stats)=>stats.pushCount>=50,
+        condLabel:"50 Push-Sessions", cosm:"crown_belt", func:"Gold-Aura freigeschaltet" },
+    ]},
+  { key:"ausdauer", label:"Ausdauer", icon:"🔵", color:"var(--pull)",
+    abilities:[
+      { key:"eiswille",  name:"Eiserner Wille", xp:400,  cond:(g,stats)=>stats.pullCount>=10,
+        condLabel:"10 Pull-Sessions", cosm:"headband", func:"+1 Streak-Freeze" },
+      { key:"maschine",  name:"Maschine",       xp:1200, cond:(g,stats)=>stats.pullCount>=25,
+        condLabel:"25 Pull-Sessions", cosm:"sweatband", func:"Volumen-Chart zeigt 8 Wochen" },
+      { key:"legende",   name:"Legende",        xp:3500, cond:(g,stats)=>stats.pullCount>=50,
+        condLabel:"50 Pull-Sessions", cosm:"halo", func:"Silber-Aura freigeschaltet" },
+    ]},
+  { key:"recomp", label:"Recomp", icon:"🟢", color:"var(--legs)",
+    abilities:[
+      { key:"bodyhacker",    name:"Body Hacker",    xp:300,  cond:(g,stats)=>stats.renphoDays>=5,
+        condLabel:"5 RENPHO-Tage", cosm:"lens", func:"Kraft/Muskelmasse-Ratio sichtbar" },
+      { key:"recomppro",     name:"Recomp Pro",     xp:1000, cond:(g,stats)=>stats.renphoDays>=15,
+        condLabel:"15 RENPHO-Tage", cosm:"tape", func:"3-Szenario-Projektion (best/likely/worst)" },
+      { key:"transformation",name:"Transformation", xp:3000, cond:(g,stats)=>stats.renphoDays>=30,
+        condLabel:"30 RENPHO-Tage", cosm:"cape", func:"Recomp-Score im Körper-Tab" },
+    ]},
+  { key:"disziplin", label:"Disziplin", icon:"⚡", color:"var(--gold)",
+    abilities:[
+      { key:"gewohnheit",  name:"Gewohnheitstier", xp:350,  cond:(g,stats)=>stats.maxStreak>=7,
+        condLabel:"7-Wochen-Streak", cosm:"clock", func:"Trainingsstreak auf Home-Screen" },
+      { key:"unaufhalt",  name:"Unaufhaltsam",    xp:1100, cond:(g,stats)=>stats.maxStreak>=21,
+        condLabel:"21-Wochen-Streak", cosm:"bolt", func:"Heatmap zeigt 6 Monate" },
+      { key:"ikone",      name:"Ikone",           xp:3200, cond:(g,stats)=>stats.maxStreak>=30,
+        condLabel:"30-Wochen-Streak", cosm:"wings", func:"Titel im Marble-Tab" },
+    ]},
+];
+
+function abilityStats(g){
+  const sess=S.sessions.filter(s=>s.date<=todayStr());
+  const pushCount=sess.filter(s=>s.type==="push").length;
+  const pullCount=sess.filter(s=>s.type==="pull").length;
+  const legsCount=sess.filter(s=>s.type==="legs").length;
+  const renphoDays=S.bodyweight.metrics.filter(m=>m.source==="renpho").length;
+  /* max streak in Wochen */
+  const m=weeksMap(), goal=S.settings.weeklyGoal;
+  const firstMon=sess.length?weekBounds([...sess].map(s=>s.date).sort()[0]).mon:"2099-01-01";
+  let mon=addDays(weekBounds(todayStr()).mon,-7), maxStreak=0, cur=0;
+  while(mon>=firstMon){
+    const cnt=m[isoWeek(mon)]||0;
+    if(cnt>=goal){ cur++; maxStreak=Math.max(maxStreak,cur); }
+    else cur=0;
+    mon=addDays(mon,-7);
+  }
+  return {pushCount,pullCount,legsCount,renphoDays,maxStreak};
+}
+
+function computeAbilities(g){
+  const xp=totalXp(g), stats=abilityStats(g);
+  const unlocked={};
+  for(const tree of ABILITY_TREES)
+    for(const ab of tree.abilities)
+      unlocked[ab.key] = xp>=ab.xp && ab.cond(g,stats);
+  return unlocked;
+}
+
+function hasAbility(key){ return !!(S.gami.abilities && S.gami.abilities[key]); }
+
+/* ---- EASTER EGGS ---- */
+const EASTER_EGGS = [
+  /* Datum-basiert: key, MM-DD, decoration, quote, xp */
+  { key:"mauricio_bday", date:"12-20", cosm:"bday_hat",
+    quote:"Alles Gute zum Geburtstag, Legende! 🎂 Heute gibt's Doppel-XP — heb was Schweres.",
+    xp:100, annual:true },
+  { key:"bianca_bday", date:"11-09", cosm:"hearts",
+    quote:"Heute ist Biancas Tag 💕 — trainier früh, feier ausgiebig.",
+    xp:50, annual:true },
+  { key:"standesamt", date:"09-07", cosm:"ring",
+    quote:"Standesamtlich unbesiegbar seit 07.09.2024. 💍 Zum Wohl.",
+    xp:75, annual:true },
+  { key:"tegernsee", date:"07-12", cosm:"mountains",
+    quote:"Am Tegernsee habt ihr Ja gesagt. 🏔️ Heute sagst du Ja zum Leg Day.",
+    xp:75, annual:true },
+  { key:"weihnachten", date:"12-25", cosm:"xmas_hat",
+    quote:"Frohe Weihnachten! 🎄 Du trainierst während alle schlafen — Respekt.",
+    xp:50, annual:true },
+  { key:"silvester", date:"12-31", cosm:"champagne",
+    quote:"Letztes Training des Jahres. 🥂 Heb's ordentlich raus.",
+    xp:50, annual:true },
+  { key:"neujahr", date:"01-01", cosm:"fireworks",
+    quote:"Kein Vorsatz. Einfach Training. 🎆 Das hier ist Character.",
+    xp:100, annual:true },
+];
+
+/* Kontext-Easter-Eggs (sessionbezogen, nach Finish gecheckt) */
+function checkContextEggs(session){
+  const eggs=[];
+  const hour=new Date().getHours();
+  const dow=new Date(session.date+"T12:00:00").getDay(); /* 0=So, 1=Mo */
+  const pushSess=S.sessions.filter(s=>s.type==="push").length;
+  const pullSess=S.sessions.filter(s=>s.type==="pull").length;
+  const legsSess=S.sessions.filter(s=>s.type==="legs").length;
+  const total=S.sessions.length;
+  /* Tageszeit */
+  if(hour<7) eggs.push({key:"early_bird",ico:"🌅",text:"Early Bird! Training vor 7 Uhr — das nennt sich Disziplin.",xp:20});
+  if(hour>=22) eggs.push({key:"night_owl",ico:"🌙",text:"Nacht-Murmel! Training nach 22 Uhr — die Gewichte schlafen schon.",xp:20});
+  /* Wochentag */
+  if(dow===1 && session.type==="legs") eggs.push({key:"rebel_monday",ico:"😈",text:"Leg Day am Montag. Wahrer Rebell.",xp:15});
+  if(dow===1 && session.type==="push") eggs.push({key:"monday_push",ico:"💪",text:"Internationaler Brusttag. Du bist pünktlich.",xp:10});
+  /* Milestone-Sessions */
+  if(total===10) eggs.push({key:"s10",ico:"🔟",text:"10 Sessions! Zweistellig — du meinst es ernst.",xp:50});
+  if(total===25) eggs.push({key:"s25",ico:"🏋️",text:"25 Sessions! Viertelzentner. Respect.",xp:100});
+  if(total===42) eggs.push({key:"s42",ico:"🌌",text:"Session #42 — die Antwort auf alles. Auch auf dein Volumen.",xp:42});
+  if(total===50) eggs.push({key:"s50",ico:"🏅",text:"50 Sessions! Halbhundert. Das ist Charakter.",xp:200});
+  if(total===100) eggs.push({key:"s100",ico:"💯",text:"100 Sessions. Triple Digits. Absolute Legende.",xp:500});
+  /* Typ-Milestones */
+  if(pushSess===10) eggs.push({key:"push10",ico:"🔴",text:"10 Push-Sessions! Eisenfaust-Material.",xp:50});
+  if(pushSess===25) eggs.push({key:"push25",ico:"🔴",text:"25 Push-Sessions. Die Brust kennt kein Pardon.",xp:100});
+  if(pushSess===50) eggs.push({key:"push50",ico:"🔴",text:"50 Push-Sessions. Titan-Status erreicht.",xp:200});
+  if(pullSess===50) eggs.push({key:"pull50",ico:"🔵",text:"50 Pull-Sessions. Rücken wie ein Türrahmen.",xp:200});
+  if(legsSess===50) eggs.push({key:"legs50",ico:"🟢",text:"50 Leg-Sessions! Das ist statistisch unmöglich.",xp:300});
+  /* Wochenmuster */
+  const thisWeek=S.sessions.filter(s=>isoWeek(s.date)===isoWeek(session.date)&&s.type==="push").length;
+  if(thisWeek>=3) eggs.push({key:"push_junkie",ico:"🤣",text:"3× Push diese Woche — auch mal Pull probieren? Nur so ein Gedanke.",xp:0});
+  /* Geburtstag + Training */
+  const md=session.date.slice(5); /* MM-DD */
+  if(md==="12-20") eggs.push({key:"bday_train",ico:"🎂",text:"Geburtstag und Training! Das nennt man Selbstliebe — Doppel-XP!",xp:100});
+  /* Beinpresse 100kg */
+  const leg100=session.entries.some(e=>e.exerciseId==="beinpresse"&&e.sets.some(x=>(x.kg||0)>=100));
+  if(leg100 && !S.gami.milestonesSeen?.leg100) eggs.push({key:"leg100",ico:"🦵",text:"Erstes Mal 100 kg Beinpresse! Das hinterlässt Spuren.",xp:75});
+  return eggs;
+}
+
+function checkDateEgg(){
+  const today=todayStr(), md=today.slice(5); /* MM-DD */
+  for(const egg of EASTER_EGGS){
+    if(egg.date!==md) continue;
+    const seenKey=egg.annual ? egg.key+"_"+today.slice(0,4) : egg.key;
+    if(S.gami.eggsSeen[seenKey]) continue; /* heute schon gesehen */
+    return {...egg, seenKey};
+  }
+  return null;
+}
+
+function claimDateEgg(egg){
+  S.gami.eggsSeen[egg.seenKey]=todayStr();
+  S.gami.xpBonus=(S.gami.xpBonus||0)+egg.xp;
+  save();
+}
+
+function claimContextEgg(egg){
+  if(!egg.key||S.gami.milestonesSeen[egg.key]) return;
+  S.gami.milestonesSeen[egg.key]=true;
+  S.gami.xpBonus=(S.gami.xpBonus||0)+egg.xp;
+  save();
+}
+
+/* ---- MURMEL ACCESSOIRE SVG (Layer über Basis-Murmel) ---- */
+function murmelAccessories(g){
+  const ab=computeAbilities(g);
+  const skin=(S.gami&&S.gami.skin)||null;
+  const dateEgg=checkDateEgg();
+  const cosm=dateEgg?.cosm||"";
+  const layers=[];
+
+  /* Kosmetik aus Fähigkeiten (Kopf) */
+  if(ab.titan||ab.legende||skin==="crown"||cosm==="crown_belt")
+    layers.push(`<ellipse cx="50" cy="14" rx="14" ry="4" fill="none" stroke="#E8C547" stroke-width="2.5" opacity=".9"/><rect x="36" y="8" width="28" height="7" rx="2" fill="#E8C547" opacity=".85"/>`);
+  if(ab.eiswille||skin==="headband")
+    layers.push(`<rect x="32" y="25" width="36" height="8" rx="4" fill="#FF453A" opacity=".85"/>`);
+  if(ab.legende)
+    layers.push(`<ellipse cx="50" cy="10" rx="8" ry="5" fill="none" stroke="#E8C547" stroke-width="1.5" opacity=".6"/>`); /* halo */
+  if(ab.ikone)
+    layers.push(`<path d="M34,62 Q30,52 26,58 Q28,46 50,44 Q72,46 74,58 Q70,52 66,62" fill="#0A84FF" opacity=".7"/>`); /* Flügel */
+
+  /* Easter Egg Dekorationen */
+  if(cosm==="bday_hat")
+    layers.push(`<polygon points="50,4 42,24 58,24" fill="#FF453A" opacity=".9"/><line x1="50" y1="4" x2="50" y2="0" stroke="#E8C547" stroke-width="1.5"/><circle cx="50" cy="0" r="2.5" fill="#E8C547"/>`);
+  if(cosm==="hearts")
+    layers.push(`<text x="20" y="20" font-size="12" opacity=".8">💕</text><text x="62" y="22" font-size="10" opacity=".7">💕</text>`);
+  if(cosm==="ring")
+    layers.push(`<circle cx="72" cy="24" r="7" fill="none" stroke="#E8C547" stroke-width="2.5"/><circle cx="72" cy="24" r="3" fill="#E8C547" opacity=".6"/>`);
+  if(cosm==="mountains")
+    layers.push(`<path d="M10,75 L22,55 L34,75" fill="#30D158" opacity=".5"/><path d="M28,75 L44,42 L60,75" fill="#30D158" opacity=".65"/>`);
+  if(cosm==="xmas_hat")
+    layers.push(`<polygon points="50,2 38,26 62,26" fill="#FF453A" opacity=".9"/><rect x="36" y="26" width="28" height="5" rx="2.5" fill="white" opacity=".85"/><circle cx="50" cy="2" r="3" fill="white" opacity=".8"/>`);
+  if(cosm==="champagne")
+    layers.push(`<rect x="60" y="15" width="8" height="18" rx="3" fill="#E8C547" opacity=".7"/><path d="M60,15 Q64,8 68,15" fill="#E8C547" opacity=".6"/>`);
+  if(cosm==="fireworks")
+    layers.push(`<text x="10" y="18" font-size="14" opacity=".8">✨</text><text x="62" y="16" font-size="12" opacity=".7">🎆</text>`);
+
+  /* Aura (Hintergrund) */
+  if(ab.titan)
+    layers.unshift(`<circle cx="50" cy="50" r="46" fill="none" stroke="#E8C547" stroke-width="3" opacity=".35" class="marble-float"/>`);
+  if(ab.legende)
+    layers.unshift(`<circle cx="50" cy="50" r="46" fill="none" stroke="#D6DBE0" stroke-width="2.5" opacity=".3" class="marble-float"/>`);
+  if(skin==="glow"||ab.ikone)
+    layers.unshift(`<circle cx="50" cy="50" r="46" fill="rgba(10,132,255,.08)" class="marble-float"/>`);
+
+  return layers.join("");
+}
+
+
 function sessionHighlights(sid){
   const sorted=[...S.sessions].filter(s=>s.date<=todayStr())
     .sort((a,b)=> a.date<b.date?-1 : a.date>b.date?1 : (a.id<b.id?-1:1));
@@ -1815,7 +2185,7 @@ function spawnConfetti(){
   document.body.appendChild(wrap);
   setTimeout(()=>wrap.remove(), 3200);
 }
-function marbleSVG(rank, size, animClass, skin){
+function marbleSVG(rank, size, animClass, skin, accessories=""){
   const id = rank.key, s=size, c=s/2;
   const grad = rank.kind==="iridescent"
     ? `<radialGradient id="g${id}" cx="38%" cy="32%" r="75%">
@@ -1850,6 +2220,8 @@ function marbleSVG(rank, size, animClass, skin){
   if (skin==="headband") skinEl=`<rect x="${c-s*.41}" y="${c-s*.17}" width="${s*.82}" height="${s*.13}" rx="${s*.02}" fill="#FF453A" opacity=".9" transform="rotate(-8 ${c} ${c})"/><circle cx="${c+s*.34}" cy="${c-s*.15}" r="${s*.04}" fill="#FF453A"/>`;
   if (skin==="crown") skinEl=`<path d="M${c-s*.2} ${c-s*.36} L${c-s*.2} ${c-s*.47} L${c-s*.07} ${c-s*.4} L${c} ${c-s*.49} L${c+s*.07} ${c-s*.4} L${c+s*.2} ${c-s*.47} L${c+s*.2} ${c-s*.36} Z" fill="#E8C547" stroke="#A9791A" stroke-width="1.2"/>`;
   if (skin==="glow") skinEl=`<circle cx="${c}" cy="${c}" r="${s*.47}" fill="none" stroke="${rank.glow}" stroke-width="${s*.02}" opacity=".7"/>`;
+  /* v1.8: Ability/Easter-Egg-Accessoires als Overlay (normalisiert auf 100×100 viewBox) */
+  const accLayer = accessories ? `<g transform="scale(${s/100})">${accessories}</g>` : "";
   return `<div class="marble-wrap ${animClass}" style="--glow:${rank.glow}">
     <svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" aria-label="Murmel ${rank.name}">
       <defs>${grad}
@@ -1860,7 +2232,7 @@ function marbleSVG(rank, size, animClass, skin){
       ${extra}
       <circle cx="${c}" cy="${c}" r="${s*.4}" fill="url(#sh${id})"/>
       <ellipse cx="${c-s*.12}" cy="${c-s*.14}" rx="${s*.12}" ry="${s*.08}" fill="${rank.hi}" opacity=".9" transform="rotate(-25 ${c-s*.12} ${c-s*.14})"/>
-      ${sparkle}${skinEl}
+      ${sparkle}${skinEl}${accLayer}
     </svg></div>`;
 }
 function vMarble(){
@@ -1873,8 +2245,23 @@ function vMarble(){
   const q = weeklyQuest(g);
   const ach = achievementsList(g);
   const skins = skinsUnlocked(g);
+  const xp = totalXp(g);
+  const abilities = computeAbilities(g);
+  const stats = abilityStats(g);
+  const acc = murmelAccessories(g);
   const pctTxt = g.next ? `Noch ${fmt(g.next.min-g.total)} P bis ${g.next.name}` : "Höchster Rang erreicht";
   const flames = "🔥".repeat(Math.min(st.streak,8)) || "·";
+  const ikone = abilities.ikone;
+
+  /* Easter Egg Banner */
+  const dateEgg = checkDateEgg();
+  const eggBanner = dateEgg ? `<div class="card" style="border-color:var(--gold);text-align:center;padding:14px 16px">
+    <div style="font-size:28px;margin-bottom:6px">${EASTER_EGGS.find(e=>e.key===dateEgg.key)?.cosm==="bday_hat"?"🎂":dateEgg.cosm==="hearts"?"💕":dateEgg.cosm==="ring"?"💍":dateEgg.cosm==="mountains"?"🏔️":dateEgg.cosm==="xmas_hat"?"🎄":dateEgg.cosm==="champagne"?"🥂":"✨"}</div>
+    <div class="quote">${dateEgg.quote}</div>
+    <div class="mut num" style="margin-top:8px">+${dateEgg.xp} XP Festtags-Bonus</div>
+    <button class="btn full" style="margin-top:10px" onclick="claimDateEgg(${JSON.stringify(dateEgg)});render();toast('+${dateEgg.xp} XP kassiert! 🎉')">Einlösen</button>
+  </div>` : "";
+
   const ladder = RANKS.map(rk=>{
     const achieved = g.total>=rk.min, isCur = rk.key===r.key;
     return `<div class="ladder-item ${achieved?"":"locked"} ${isCur?"current":""}">
@@ -1901,19 +2288,58 @@ function vMarble(){
       <b class="num" style="color:var(--legs)">+${p.pts}</b></div>`;
   }).join("");
   const nextPrev = g.next ? `<div class="preview-next"><div style="width:64px;height:64px;margin:0 auto">${marbleSVG(g.next,64,"")}</div><div class="mut num" style="margin-top:4px">${g.next.name}</div></div>` : "";
-  return `<h1>Murmel</h1><p class="sub">Dein Trainings-Level</p>
+
+  /* Fähigkeiten-Baum HTML */
+  const abilityTreeHtml = ABILITY_TREES.map(tree=>{
+    const abs = tree.abilities.map((ab,i)=>{
+      const unlocked = abilities[ab.key];
+      const prevUnlocked = i===0 || abilities[tree.abilities[i-1].key];
+      const xpOk = xp >= ab.xp;
+      const condOk = ab.cond(g,stats);
+      const available = !unlocked && xpOk && condOk;
+      const barW = unlocked?100:Math.min(100,Math.round(xp/ab.xp*100));
+      return `<div class="ability-item ${unlocked?"unlocked":available?"available":"locked"}">
+        <div class="row" style="gap:8px;align-items:flex-start">
+          <div style="min-width:28px;font-size:18px;text-align:center">${unlocked?"✨":"🔒"}</div>
+          <div class="grow">
+            <div class="row"><b style="font-size:13px">${ab.name}</b>
+              ${unlocked?'<span class="delta up" style="font-size:11px">freigeschaltet</span>':available?'<span class="delta" style="font-size:11px;color:var(--gold)">verfügbar</span>':''}</div>
+            <div class="mut" style="font-size:11px;margin-top:2px">🎨 ${ab.cosm} · ⚡ ${ab.func}</div>
+            <div class="row" style="margin-top:6px;gap:8px;align-items:center">
+              <div class="pbar grow"><div class="pfill" style="width:${barW}%;background:${unlocked?'var(--legs)':available?'var(--gold)':'var(--pull)'}"></div></div>
+              <span class="mut num" style="font-size:11px;min-width:60px;text-align:right">${unlocked?"✓":fmt(xp)+"/"+fmt(ab.xp)+" XP"}</span>
+            </div>
+            <div class="mut" style="font-size:11px;margin-top:2px">${ab.condLabel}</div>
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+    return `<div class="card" style="padding:14px 16px">
+      <div class="lbl" style="color:${tree.color};margin-bottom:10px">${tree.icon} ${tree.label}-Baum</div>
+      ${abs}
+    </div>`;
+  }).join("");
+
+  return `<h1>Murmel${ikone?' <span class="badge" style="font-size:11px;background:rgba(10,132,255,.2);color:var(--pull)">Ikone</span>':''}</h1>
+  <p class="sub">Dein Trainings-Level</p>
+  ${eggBanner}
   <div class="card">
     <div class="preview-marbles">
-      <div style="text-align:center"><div class="marble-stage" style="padding:6px 0">${marbleSVG(r, 132, g.state.anim, skin)}</div></div>
+      <div style="text-align:center"><div class="marble-stage" style="padding:6px 0">${marbleSVG(r, 132, g.state.anim, skin, acc)}</div></div>
       ${nextPrev}
     </div>
     <div class="rank-name">${r.name}</div>
     <div class="rank-state">${g.state.name} · ${g.state.desc}</div>
     <div class="quote" style="margin-top:8px">„${murmelQuote(g)}"</div>
     <div class="row" style="margin-top:14px"><div class="grow">
-      <div class="row"><span class="lbl grow">${r.name}</span><span class="mut num">${g.next?"→ "+g.next.name:"MAX"}</span></div>
+      <div class="row"><span class="lbl grow">Rang: ${r.name}</span><span class="mut num">${g.next?"→ "+g.next.name:"MAX"}</span></div>
       <div class="pbar"><div class="pfill" style="width:${(g.prog*100).toFixed(1)}%; background:${r.core}"></div></div>
-      <div class="mut num" style="margin-top:6px">${fmt(g.total)} P · ${pctTxt}</div>
+      <div class="mut num" style="margin-top:4px">${fmt(g.total)} P Basis · ${pctTxt}</div>
+    </div></div>
+    <div class="row" style="margin-top:12px"><div class="grow">
+      <div class="row"><span class="lbl grow">Gesamt-XP</span><span class="num" style="color:var(--gold)">${fmt(xp)} XP</span></div>
+      <div class="pbar" style="margin-top:4px"><div class="pfill" style="width:${Math.min(100,(xp/5000*100)).toFixed(1)}%;background:var(--gold)"></div></div>
+      <div class="mut num" style="margin-top:4px">Basis ${fmt(g.total)} + Bonus ${fmt(xp-g.total)} XP</div>
     </div></div>
     <div class="skinrow">${skinBtns}</div>
   </div>
@@ -1937,16 +2363,25 @@ function vMarble(){
     <div class="pbar" style="margin-top:10px"><div class="pfill" style="width:${(q.prog/q.target*100).toFixed(0)}%; background:${q.done?"var(--legs)":"var(--pull)"}"></div></div>
     <div class="mut num" style="margin-top:6px">${q.prog}/${q.target}${q.done?" · Abzeichen verdient 🎖️":""}</div>
   </div>
+  <h2>Fähigkeiten-Baum</h2>
+  <p class="sub" style="margin-bottom:10px">XP sammeln und Murmel-Fähigkeiten freischalten — kosmetisch und funktional.</p>
+  ${abilityTreeHtml}
   <h2>Erfolge</h2>
   <div class="trophy-grid">${achHtml}</div>
-  <h2>Punkte gesamt</h2>
+  <h2>Punkte &amp; XP</h2>
   <div class="ptbreak">
     <div><b class="num">${fmt(g.totals.consistency)}</b><span>Konsistenz</span></div>
     <div><b class="num">${fmt(g.totals.progression)}</b><span>Progression</span></div>
     <div><b class="num">${fmt(g.totals.pr)}</b><span>PRs</span></div>
     <div><b class="num">${fmt(g.totals.weekly)}</b><span>Wochenziel</span></div>
   </div>
-  <p class="mut small" style="margin:10px 2px 0">Konsistenz +10/Session · Progression +5/gesteigerte Übung · PR +25 · Wochenziel +50. Alles aus deinen echten Sessions berechnet.</p>
+  <div class="ptbreak" style="margin-top:8px">
+    <div><b class="num" style="color:var(--gold)">${fmt(S.bodyweight.log.length*10)}</b><span>Gewicht-XP</span></div>
+    <div><b class="num" style="color:var(--gold)">${fmt(S.bodyweight.metrics.filter(m=>m.source==="renpho").length*15)}</b><span>RENPHO-XP</span></div>
+    <div><b class="num" style="color:var(--gold)">${fmt(S.gami.xpBonus||0)}</b><span>Bonus-XP</span></div>
+    <div><b class="num" style="color:var(--gold)">${fmt(xp)}</b><span>Gesamt-XP</span></div>
+  </div>
+  <p class="mut small" style="margin:10px 2px 0">Konsistenz +10/Session · Progression +5 · PR +25 · Wochenziel +50 · Satz +5 · RIR +5 · Gewicht +10 · RENPHO-Tag +15 · Bonus-XP von Meilensteinen &amp; Dates.</p>
   <h2>Letzte Punkte</h2>
   <div class="card">${recentPts || '<div class="mut">Noch keine Sessions.</div>'}</div>
   <h2>Rang-Leiter</h2>
@@ -2089,9 +2524,9 @@ async function exportData(){
   try { await navigator.clipboard.writeText(json); toast("In Zwischenablage kopiert ✓"); }
   catch(e){ toast("Bitte manuell kopieren"); }
 }
-function setExRest(id,d){
+function setExRest(id, delta /* Sekunden-Delta, positiv = mehr, negativ = weniger */){
   const ex=S.exercises[id];
-  let v=(ex.restSeconds||S.settings.restSeconds)+d;
+  let v=(ex.restSeconds||S.settings.restSeconds)+delta;
   if(v<=0 || v<15){ ex.restSeconds=null; } else { ex.restSeconds=v; }
   save(); render();
 }
@@ -2173,6 +2608,11 @@ function togglePlan(t,id){
   await loadState();
   if (S.draft && !S.draft.startedAt) S.draft.startedAt = Date.now(); /* v1.4 */
   if (!S.gami) S.gami = { skin:null }; /* v1.5 */
+  /* v1.8: XP / Fähigkeiten / Easter Eggs */
+  if (!S.gami.xpBonus)        S.gami.xpBonus = 0;        /* einmalige Bonus-XP (Dates, Milestones) */
+  if (!S.gami.abilities)      S.gami.abilities = {};      /* {abilityKey: true} freigeschaltet */
+  if (!S.gami.eggsSeen)       S.gami.eggsSeen = {};       /* {eggKey: "YYYY-MM-DD"} zuletzt gesehen */
+  if (!S.gami.milestonesSeen) S.gami.milestonesSeen = {}; /* {key: true} einmalig angezeigt */
   /* v1.6: Muskelgruppen nachtragen (alte Daten ohne muscle) */
   const MUMAP={flachbank:"chest",schraegbank:"chest",cablefly:"chest",schulterdruecken:"shoulders",seitheben:"shoulders",
     trizeps:"triceps",latzug:"back",kabelrudern:"back",facepulls:"back",preacher:"biceps",hammercurl:"biceps",
@@ -2181,27 +2621,29 @@ function togglePlan(t,id){
   /* v1.7: Körpermetriken-Array nachtragen */
   if (!S.bodyweight.metrics) S.bodyweight.metrics = [];
   render();
+
+  /* ================= v1.9: SWIPE GESTURES ================= */
+  const TAB_ORDER = ["home","history","charts","report","marble","settings"];
+  let swipeStartX=0, swipeStartY=0, swipeStartView="";
+  document.addEventListener("touchstart", e=>{
+    swipeStartX=e.touches[0].clientX;
+    swipeStartY=e.touches[0].clientY;
+    swipeStartView=view;
+  }, {passive:true});
+  document.addEventListener("touchend", e=>{
+    const dx=e.changedTouches[0].clientX - swipeStartX;
+    const dy=e.changedTouches[0].clientY - swipeStartY;
+    /* Only horizontal swipes wider than 60px that are more horizontal than vertical */
+    if (Math.abs(dx)<60 || Math.abs(dy)>Math.abs(dx)*0.7) return;
+    /* Don't swipe inside a bottom sheet, scrollable chip row, or during session if swiping right */
+    if (document.getElementById("sheet-bg")) return;
+    const mainViews = ["home","history","charts","report","marble","settings"];
+    const idx = mainViews.indexOf(swipeStartView);
+    if (idx<0) return; /* don't swipe on session/detail sub-views */
+    const next = dx<0 ? mainViews[idx+1] : mainViews[idx-1];
+    if (next) go(next);
+  }, {passive:true});
 })();
 </script>
 </body>
 </html>
-
-<script>document.addEventListener('click',e=>{const b=e.target.closest('button');if(b&&/export|backup/i.test(b.textContent)){try{S.settings.lastBackup=new Date().toISOString();save();}catch(err){}}});</script>
-<script>
-(function(){
-const origParse=parseFloat;
-window.validateWorkoutValue=function(v,min,max){
- v=Number(v);
- if(!isFinite(v)) return min;
- return Math.min(max,Math.max(min,v));
-};
-document.addEventListener('change',function(e){
- const el=e.target;
- if(el && el.type==='number'){
-   const max=Number(el.max||10000), min=Number(el.min||0);
-   const nv=validateWorkoutValue(el.value,min,max);
-   if(Number(el.value)!==nv){ el.value=nv; }
- }
-});
-})();
-</script>
