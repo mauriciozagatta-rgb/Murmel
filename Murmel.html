@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#060708">
 <title>PPL Tracker</title>
+<!-- v2.0: Google Identity Services (Login + Drive-Sync). Lädt nur online; App funktioniert auch ohne. -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root{
   --bg:#060708; --card:#0D0F12; --card2:#14171B; --line:rgba(255,255,255,.07); --lineS:rgba(255,255,255,.12);
@@ -102,6 +104,11 @@ svg{max-width:100%;}
 .hint{font-size:13px; border-radius:10px; padding:8px 11px; margin-top:10px; background:rgba(255,255,255,.03); color:var(--mut); border:1px solid var(--line);}
 .hint.up{background:rgba(48,209,88,.08); color:#5ED27F; border-color:rgba(48,209,88,.2);}
 .hint.hold{background:rgba(232,197,71,.07); color:#D4B956; border-color:rgba(232,197,71,.2);}
+/* v2.0: Ziel-Zeile (Double Progression) + Sync-Status */
+.goalline{font-size:13px; font-weight:600; border-radius:10px; padding:8px 11px; margin-top:8px;
+  background:var(--accA,rgba(255,255,255,.04)); color:var(--acc,var(--txt)); border:1px solid var(--accB,var(--lineS));}
+.sdot{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--legs); margin-right:7px; vertical-align:middle;}
+.sdot.off{background:var(--dim);}
 .list-item{display:flex; align-items:center; gap:12px; padding:14px 2px; border-bottom:1px solid var(--line);}
 .list-item:last-child{border-bottom:none; padding-bottom:4px;}
 .list-item:first-child{padding-top:4px;}
@@ -421,13 +428,140 @@ async function loadState(){
   await persist(true);
   toast("Trainingsdaten importiert ✓");
 }
-function save(){ clearTimeout(saveT); saveT = setTimeout(()=>persist(false), 400); }
+function save(){ if(S){ S.updatedAt=Date.now(); S.lastDevice=deviceLabel(); } clearTimeout(saveT); saveT = setTimeout(()=>persist(false), 400); scheduleAutoPush(); }
 async function persist(silentFail){
   if (memOnly) return;
   try {
     const r = await window.storage.set(KEY, JSON.stringify(S), false);
     if (!r && !silentFail) toast("Speichern fehlgeschlagen");
   } catch(e){ if(!silentFail) toast("Speichern fehlgeschlagen"); }
+}
+
+/* ================= v2.0 CLOUD-SYNC (Google-/Gmail-Login + Drive appDataFolder) =================
+   Sichert eine private Datei "murmel-data.json" im versteckten App-Ordner DEINES eigenen Google
+   Drive. Kein Server, keine Fremd-Datenbank. Die (öffentliche) OAuth-Client-ID liegt lokal in
+   localStorage – NICHT in S und NICHT im JSON-Export. Konflikte: jüngeres updatedAt gewinnt. */
+const G_SCOPE="https://www.googleapis.com/auth/drive.appdata";
+const G_FILE="murmel-data.json";
+function lg(k){ try{ return localStorage.getItem("murmel:"+k); }catch(e){ return null; } }
+function lsx(k,v){ try{ localStorage.setItem("murmel:"+k, v); }catch(e){} }
+function ldx(k){ try{ localStorage.removeItem("murmel:"+k); }catch(e){} }
+function deviceLabel(){ return lg("device") || "Mein Gerät"; }
+function setDeviceLabel(v){ const t=(v||"").trim(); if(t) lsx("device",t); render(); }
+function gClientId(){ return (lg("gClientId")||"").trim(); }
+function setGClientId(v){ const t=(v||"").trim(); if(t) lsx("gClientId",t); else ldx("gClientId"); _gTokenClient=null; render(); }
+function autoSyncOn(){ return lg("autosync")==="1"; }
+function setAutoSync(on){ lsx("autosync", on?"1":"0"); if(on) cloudSync(true); render(); }
+function gConnected(){ return lg("connected")==="1" && !!gClientId(); }
+
+let _gAccessToken=null, _gTokenExp=0, _gTokenClient=null, _gCid="", _gResolve=null;
+function gReady(){ return typeof google!=="undefined" && google.accounts && google.accounts.oauth2; }
+function gToken(interactive){
+  return new Promise(resolve=>{
+    const cid=gClientId();
+    if(!cid || !gReady()){ resolve(null); return; }
+    if(_gAccessToken && Date.now()<_gTokenExp-60000){ resolve(_gAccessToken); return; }
+    try{
+      if(!_gTokenClient || _gCid!==cid){
+        _gCid=cid;
+        _gTokenClient=google.accounts.oauth2.initTokenClient({
+          client_id:cid, scope:G_SCOPE,
+          callback:r=>{ const cb=_gResolve; _gResolve=null;
+            if(r && r.access_token){ _gAccessToken=r.access_token; _gTokenExp=Date.now()+(r.expires_in?r.expires_in*1000:3600000); lsx("connected","1"); if(cb)cb(_gAccessToken); }
+            else if(cb) cb(null); },
+          error_callback:()=>{ const cb=_gResolve; _gResolve=null; if(cb)cb(null); }
+        });
+      }
+      _gResolve=resolve;
+      _gTokenClient.requestAccessToken({prompt: interactive?"":"none"});
+    }catch(e){ resolve(null); }
+  });
+}
+function gSignOut(){
+  try{ if(_gAccessToken && gReady()) google.accounts.oauth2.revoke(_gAccessToken, ()=>{}); }catch(e){}
+  _gAccessToken=null; _gTokenExp=0; ldx("connected"); ldx("gFileId"); toast("Google getrennt"); render();
+}
+/* --- Drive REST (nur fetch, keine SDK) --- */
+async function driveFind(t){
+  const q=encodeURIComponent("name='"+G_FILE+"'");
+  const r=await fetch("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,modifiedTime)&q="+q,{headers:{Authorization:"Bearer "+t}});
+  if(!r.ok) throw new Error("Suche "+r.status);
+  const j=await r.json(); return (j.files&&j.files[0])||null;
+}
+async function driveDownload(t,id){
+  const r=await fetch("https://www.googleapis.com/drive/v3/files/"+id+"?alt=media",{headers:{Authorization:"Bearer "+t}});
+  if(!r.ok) throw new Error("Download "+r.status);
+  return await r.text();
+}
+async function driveUpdate(t,id,body){
+  const r=await fetch("https://www.googleapis.com/upload/drive/v3/files/"+id+"?uploadType=media",{method:"PATCH",headers:{Authorization:"Bearer "+t,"Content-Type":"application/json"},body});
+  if(!r.ok) throw new Error("Update "+r.status); return id;
+}
+async function driveCreate(t,body){
+  const b="mb"+Date.now();
+  const meta=JSON.stringify({name:G_FILE,parents:["appDataFolder"],mimeType:"application/json"});
+  const multipart="--"+b+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"+meta+"\r\n--"+b+"\r\nContent-Type: application/json\r\n\r\n"+body+"\r\n--"+b+"--";
+  const r=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",{method:"POST",headers:{Authorization:"Bearer "+t,"Content-Type":"multipart/related; boundary="+b},body:multipart});
+  if(!r.ok) throw new Error("Anlegen "+r.status);
+  return (await r.json()).id;
+}
+async function driveWrite(t, jsonStr){
+  let id=lg("gFileId");
+  if(id){ try{ await driveUpdate(t,id,jsonStr); return id; }catch(e){ ldx("gFileId"); id=null; } }
+  const f=await driveFind(t);
+  if(f){ await driveUpdate(t,f.id,jsonStr); id=f.id; } else { id=await driveCreate(t,jsonStr); }
+  lsx("gFileId",id); return id;
+}
+/* --- High-level Aktionen --- */
+async function cloudPush(silent){
+  const t=await gToken(!silent); if(!t){ if(!silent) toast("Erst mit Google verbinden"); return false; }
+  try{ const id=await driveWrite(t, JSON.stringify(S)); lsx("gFileId",id); lsx("lastSync",String(Date.now()));
+    if(!silent){ toast("In Cloud gesichert ✓"); render(); } return true; }
+  catch(e){ if(!silent) toast("Sync-Fehler: "+e.message); return false; }
+}
+async function cloudPull(silent){
+  const t=await gToken(!silent); if(!t){ if(!silent) toast("Erst mit Google verbinden"); return false; }
+  try{
+    const f=await driveFind(t); if(!f){ if(!silent) toast("Keine Cloud-Daten gefunden"); return false; }
+    const parsed=JSON.parse(await driveDownload(t,f.id));
+    if(!parsed||!parsed.sessions||!parsed.exercises){ if(!silent) toast("Cloud-Daten ungültig"); return false; }
+    S=parsed; lsx("gFileId",f.id); lsx("lastSync",String(Date.now())); await persist(true);
+    if(!silent){ toast("Aus Cloud geladen ✓"); go("home"); } else render(); return true;
+  }catch(e){ if(!silent) toast("Sync-Fehler: "+e.message); return false; }
+}
+async function cloudSync(silent){
+  const t=await gToken(!silent); if(!t){ if(!silent) toast("Erst mit Google verbinden"); return false; }
+  try{
+    const f=await driveFind(t);
+    if(!f) return await cloudPush(silent);
+    let cloud=null; try{ cloud=JSON.parse(await driveDownload(t,f.id)); }catch(_){}
+    lsx("gFileId",f.id);
+    const cT=(cloud&&cloud.updatedAt)||0, lT=(S&&S.updatedAt)||0;
+    if(cT>lT){
+      if(!silent && typeof confirm==="function" && !confirm("Cloud-Daten sind neuer (Gerät: "+((cloud&&cloud.lastDevice)||"?")+", "+new Date(cT).toLocaleString("de-DE")+").\n\nLokale Daten überschreiben?")) return false;
+      if(cloud){ S=cloud; lsx("lastSync",String(Date.now())); await persist(true); if(!silent){ toast("Aus Cloud aktualisiert ✓"); go("home"); } else render(); return true; }
+      return false;
+    } else if(lT>cT){ return await cloudPush(silent); }
+    else { lsx("lastSync",String(Date.now())); if(!silent) toast("Bereits synchron ✓"); render(); return true; }
+  }catch(e){ if(!silent) toast("Sync-Fehler: "+e.message); return false; }
+}
+/* Auto-Push nach Änderungen – still, unterbricht nie das Training (nur stiller Token) */
+let _autoPushT=null;
+function scheduleAutoPush(){
+  if(!autoSyncOn() || !gClientId()) return;
+  if(typeof navigator!=="undefined" && navigator.onLine===false) return;
+  clearTimeout(_autoPushT); _autoPushT=setTimeout(()=>cloudPush(true), 4000);
+}
+/* Beim App-Start einmal abgleichen (wartet, bis GIS-Bibliothek geladen ist) */
+function bootSync(tries){
+  if(!autoSyncOn() || !gClientId()) return;
+  if(gReady()){ cloudSync(true); return; }
+  if((tries||0)>25) return;
+  setTimeout(()=>bootSync((tries||0)+1), 200);
+}
+function syncStatusLine(){
+  const last=lg("lastSync"); const lastTxt = last ? new Date(+last).toLocaleString("de-DE") : "noch nie";
+  return `<span class="sdot ${gConnected()?"":"off"}"></span>${gConnected()?"Mit Google verbunden":"Nicht verbunden"} · Letzter Sync: ${lastTxt}`;
 }
 
 /* ================= HELPERS ================= */
@@ -662,36 +796,68 @@ function strengthPerMuscleMass(){
   return {totalE1rm:Math.round(totalE1rm), muscleMass:latestMM, ratio: +(totalE1rm/latestMM).toFixed(2)};
 }
 
+/* rundet auf das nächste erreichbare Vielfache des Übungs-Schritts (rackbar / Maschinen-Raster) */
+function roundToInc(kg, inc){ if(!inc||inc<=0) return +(+kg).toFixed(2); return +(Math.round(kg/inc)*inc).toFixed(2); }
+
+/* v2.0 PROGRESSIONS-ENGINE (doppelte Progression):
+   1) gleiches Gewicht → jeden Satz um 1 Rep schlagen, bis alle das obere Range-Ende erreichen
+   2) alle Sätze am repMax → Gewicht +Schritt, Reps zurück an den unteren Rand
+   3) mehrere Sätze unter repMin (zu schwer) → ein Schritt runter, Basis festigen
+   4) wiederholt kein Fortschritt (Plateau) → Deload (~10 % runter)
+   Vorbelegt werden immer die zuletzt GESCHAFFTEN Reps (ehrlich); das Ziel pusht darüber hinaus. */
 function suggest(exId){
   const ex = S.exercises[exId];
   const last = lastEntryFor(exId);
+  /* ----- Sekunden-Übungen (Plank etc.) ----- */
   if (ex.unit==="seconds"){
-    if (!last) return { sets:[{seconds:30},{seconds:30},{seconds:30}], hint:"Erste Session – Startwert wählen", cls:"" };
-    const base = Math.max(...last.entry.sets.map(s=>s.seconds||0));
-    const allHit = last.entry.sets.every(s=>(s.seconds||0)>=base);
+    if (!last) return { sets:[{seconds:30},{seconds:30},{seconds:30}], hint:"Erste Session – Startwert wählen", cls:"", goal:"" };
+    const segs = last.entry.sets.slice(0,5);
+    const base = Math.max(...segs.map(s=>s.seconds||0));
+    const allHit = segs.every(s=>(s.seconds||0)>=base);
     const sec = allHit ? base+ex.increment : base;
-    return { sets:last.entry.sets.map(()=>({seconds:sec})),
-      hint: allHit ? "Steigerung: +"+ex.increment+"s" : "Gleiches Niveau halten", cls: allHit?"up":"" };
+    return { sets:segs.map(()=>({seconds:sec})),
+      hint: allHit ? "Steigerung: +"+ex.increment+"s – letztes Mal alle Sätze gehalten." : "Gleiches Niveau halten, alle Sätze sauber durch.",
+      cls: allHit?"up":"",
+      goal: allHit ? "🎯 Ziel: "+sec+"s pro Satz (vorher "+base+"s)." : "🎯 Ziel: "+segs.map(s=>(s.seconds||0)+"s").join(" · ")+" – diesmal alle voll halten." };
   }
-  if (!last) return { sets:[{kg:0,reps:ex.repMin},{kg:0,reps:ex.repMin},{kg:0,reps:ex.repMin}], hint:"Erste Session – Gewicht wählen", cls:"" };
-  const sets = last.entry.sets;
-  const baseKg = sets[sets.length-1].kg;
-  const allMax = sets.every(s=>(s.reps||0) >= ex.repMax);
-  const anyBelowMin = sets.some(s=>(s.reps||0) < ex.repMin);
-  /* RIR-Autoregulation (#14): wie viele Reps blieben beim letzten Mal im Tank? */
-  const rirs = sets.map(s=>s.rir).filter(v=>v!==undefined && v!==null);
-  const avgRir = rirs.length ? rirs.reduce((a,b)=>a+b,0)/rirs.length : null;
-  /* Plateau (#13) */
+  /* ----- Gewichts-Übungen ----- */
+  if (!last) return { sets:[{kg:0,reps:ex.repMin},{kg:0,reps:ex.repMin},{kg:0,reps:ex.repMin}], hint:"Erste Session – Gewicht wählen", cls:"", goal:"" };
+  const sets = last.entry.sets.slice(0,5);             /* Satz-Cap bei 5 */
+  const repsArr = sets.map(s=>s.reps||0);
+  const baseKg = sets[sets.length-1].kg||0;            /* Arbeitsgewicht = letztes Set */
+  const allMax = repsArr.every(r=>r>=ex.repMax);       /* oberes Range-Ende auf ALLEN Sätzen */
+  const belowMin = repsArr.filter(r=>r<ex.repMin).length;
   const pl = plateauInfo(exId);
-  let kg = baseKg, hint, cls="";
-  if (pl.deload){ kg = +(baseKg*0.9).toFixed(2); hint = "Deload empfohlen – "+pl.sessions+"× kein Fortschritt. ~10 % runter, sauber ausführen."; cls="hold"; }
-  else if (allMax && (avgRir===null || avgRir>=1)){ kg = +(baseKg + ex.increment).toFixed(2); hint = "Steigerung: +"+fmt(ex.increment)+" kg – alle Sätze bei "+ex.repMax+"+ Reps"+(avgRir!==null?" (RIR ~"+avgRir.toFixed(0)+")":""); cls="up"; }
-  else if (allMax && avgRir===0){ kg = baseKg; hint = "Reps erreicht, aber bis zum Versagen – Gewicht halten, RIR ~1-2 anpeilen"; cls="hold"; }
-  else if (anyBelowMin){ hint = "Gleiches Gewicht – Form fokussieren (Ziel: "+ex.repMin+"–"+ex.repMax+")"; cls="hold"; }
-  else { hint = "Gleiches Gewicht, Reps Richtung "+ex.repMax+" steigern"; }
-  /* e1RM-Kontext (#16) */
   const e1 = Math.max(...sets.map(s=>e1rm(s.kg||0,s.reps||0)));
-  return { sets: sets.map(()=>({kg, reps: ex.repMin})), hint, cls, e1:+e1.toFixed(1) };
+  let kg, outSets, hint, cls="", goal="";
+
+  if (pl.deload){
+    kg = roundToInc(baseKg*0.9, ex.increment);
+    outSets = sets.map(()=>({kg, reps:ex.repMin}));
+    hint = "Deload: "+pl.sessions+"× kein neuer Höchstwert. ~10 % runter, dafür sauber & explosiv.";
+    cls = "hold";
+    goal = "🎯 Ziel: "+ex.repMin+"–"+ex.repMax+" Reps bei "+fmt(kg)+" kg mit perfekter Technik – dann neu angreifen.";
+  } else if (allMax){
+    kg = +(baseKg + ex.increment).toFixed(2);
+    outSets = sets.map(()=>({kg, reps:ex.repMin}));
+    hint = "🚀 Hoch! +"+fmt(ex.increment)+" kg – du hattest alle Sätze auf "+ex.repMax+"+ Reps.";
+    cls = "up";
+    goal = "🎯 Ziel: mind. "+ex.repMin+" Reps/Satz bei "+fmt(kg)+" kg. Knackst du "+ex.repMax+", geht's nächstes Mal wieder hoch.";
+  } else if (belowMin>=2){
+    kg = roundToInc(baseKg - ex.increment, ex.increment);
+    outSets = sets.map(()=>({kg, reps:ex.repMin}));
+    hint = "Letztes Mal zu schwer ("+belowMin+" Sätze unter "+ex.repMin+"). Ein Schritt runter, Basis festigen.";
+    cls = "hold";
+    goal = "🎯 Ziel: stabil "+ex.repMin+"–"+ex.repMax+" Reps bei "+fmt(kg)+" kg, dann wieder rauf.";
+  } else {
+    kg = baseKg;
+    outSets = sets.map(s=>({kg, reps: s.reps||ex.repMin}));    /* Vorbelegung = letzte Reps */
+    const targets = repsArr.map(r=>Math.min((r||ex.repMin)+1, ex.repMax));
+    hint = "Gleiches Gewicht – jeden Satz um 1 Rep schlagen. Sobald alle "+ex.repMax+" erreichen → +"+fmt(ex.increment)+" kg.";
+    cls = "";
+    goal = "🎯 Ziel: "+targets.join(" · ")+" Reps  (letztes Mal "+repsArr.join(" · ")+").";
+  }
+  return { sets: outSets, hint, cls, e1:+e1.toFixed(1), goal };
 }
 /* ---------- v1.6: COACH-LOGIK ---------- */
 const MUSCLES = {
@@ -979,7 +1145,7 @@ function startSession(type){
     S.draft = { type, date: todayStr(), startedAt: Date.now(),
       entries: S.plan[type].map(exId=>{
         const sg = suggest(exId);
-        return { exerciseId:exId, sets:sg.sets.map(s=>({...s, done:false})), notes:"", hint:sg.hint, hintCls:sg.cls };
+        return { exerciseId:exId, sets:sg.sets.map(s=>({...s, done:false})), notes:"", hint:sg.hint, hintCls:sg.cls, goal:sg.goal };
       })};
     save();
   }
@@ -1027,6 +1193,7 @@ function vSession(){
       ${note?`<div class="notereminder">📝 Letzte Notiz (${dShort(note.date)}): ${esc(note.note)}</div>`:""}
       ${plHint}
       ${e.hint?`<div class="hint ${e.hintCls||""}">${esc(e.hint)}</div>`:""}
+      ${e.goal?`<div class="goalline">${esc(e.goal)}</div>`:""}
       ${rows}
       <div class="row" style="margin-top:10px">
         <button class="btn grow" onclick="addSet(${ei})">+ Satz</button>
@@ -1112,7 +1279,7 @@ function swapExercise(ei, exId, name){
   if(!id){ id="ex"+Date.now(); const mu=S.exercises[e.exerciseId].muscle||"other";
     S.exercises[id]={name, perSide:false, unit:"kg", repMin:8, repMax:12, increment:2.5, muscle:mu}; }
   const sg=suggest(id);
-  S.draft.entries[ei]={ exerciseId:id, sets:sg.sets.map(s=>({...s,done:false})), notes:"", hint:sg.hint, hintCls:sg.cls };
+  S.draft.entries[ei]={ exerciseId:id, sets:sg.sets.map(s=>({...s,done:false})), notes:"", hint:sg.hint, hintCls:sg.cls, goal:sg.goal };
   closeAddSheet(); save(); render();
 }
 function stepper(ei,si,field,val,unit){
@@ -1193,7 +1360,7 @@ function addExerciseConfirm(){
     S.exercises[id] = { name, perSide:false, unit:"kg", repMin:8, repMax:12, increment:2.5 };
   }
   const sg = suggest(id);
-  S.draft.entries.push({ exerciseId:id, sets:sg.sets.map(s=>({...s,done:false})), notes:"", hint:sg.hint, hintCls:sg.cls });
+  S.draft.entries.push({ exerciseId:id, sets:sg.sets.map(s=>({...s,done:false})), notes:"", hint:sg.hint, hintCls:sg.cls, goal:sg.goal });
   closeAddSheet(); save(); render();
 }
 function cancelDraft(){
@@ -2502,6 +2669,38 @@ function vSettings(){
       <button class="btn full" id="importBtn" style="margin-top:8px" onclick="importData(this)">Daten importieren</button>
       <div class="mut small" style="margin-top:6px">Überschreibt alle aktuellen Daten. Nützlich beim Umzug von der Claude-Version.</div></div>
   </div>
+  <h2>Sync &amp; Geräte</h2>
+  <p class="sub">Deine Daten über Google (Gmail) auf mehreren Geräten nutzen. Gesichert wird in einer privaten Datei in deinem eigenen Google Drive – kein Server, keine Fremd-Datenbank.</p>
+  <div class="card">
+    <div class="mut small" style="margin-bottom:12px">${syncStatusLine()}</div>
+    ${gConnected()
+      ? `<div class="row" style="gap:8px"><button class="btn grow accent t-pull" onclick="cloudSync(false)">☁︎ Jetzt synchronisieren</button>
+           <button class="btn" onclick="gSignOut()">Trennen</button></div>`
+      : `<button class="btn full accent t-pull" onclick="cloudSync(false)">Mit Google verbinden &amp; synchronisieren</button>`}
+    <div class="row" style="gap:8px; margin-top:8px">
+      <button class="btn grow" onclick="cloudPush(false)">⬆ Hochladen</button>
+      <button class="btn grow" onclick="cloudPull(false)">⬇ Herunterladen</button></div>
+    <div class="mut small" style="margin-top:6px">„Hochladen" überschreibt die Cloud mit diesem Gerät · „Herunterladen" überschreibt dieses Gerät mit der Cloud. Beim normalen Sync gewinnt automatisch der jüngere Stand.</div>
+    <div class="row" style="margin-top:14px"><div class="grow"><b>Auto-Sync</b><div class="mut">Beim Öffnen abgleichen, nach Änderungen still sichern</div></div>
+      <button class="btn" onclick="setAutoSync(${!autoSyncOn()})">${autoSyncOn()?"An":"Aus"}</button></div>
+    <div style="margin-top:14px">
+      <div class="lbl" style="margin-bottom:6px">Gerätename</div>
+      <input type="text" id="devIn" placeholder="z.B. iPhone von Mauricio" value="${esc(deviceLabel())}" onchange="setDeviceLabel(this.value)"></div>
+    <details class="lastblock" style="margin-top:14px"><summary>Einrichtung (einmalig) ▾</summary>
+      <div class="mut small" style="line-height:1.8; margin-top:8px">
+        1. Projekt anlegen unter <span style="font-family:var(--mono)">console.cloud.google.com</span><br>
+        2. „APIs &amp; Dienste" → OAuth-Zustimmungsbildschirm (extern) einrichten, dich selbst als Test-User eintragen<br>
+        3. „Anmeldedaten" → OAuth-Client-ID → Typ <b>Web</b>. Autorisierte JavaScript-Quelle:<br>
+        <span style="font-family:var(--mono); font-size:11px">https://mauriciozagatta-rgb.github.io</span><br>
+        4. Berechtigung <span style="font-family:var(--mono)">drive.appdata</span> deckt der Code automatisch ab<br>
+        5. Client-ID unten einfügen, dann oben „Mit Google verbinden".
+      </div>
+      <div style="margin-top:10px">
+        <div class="lbl" style="margin-bottom:6px">OAuth-Client-ID</div>
+        <input type="text" id="cidIn" placeholder="…apps.googleusercontent.com" value="${esc(gClientId())}" onchange="setGClientId(this.value)" style="font-family:var(--mono); font-size:11px"></div>
+      ${gReady()?"":`<div class="hint hold" style="margin-top:10px">Google-Login-Bibliothek noch nicht geladen (offline?). Bei Internetverbindung neu laden.</div>`}
+    </details>
+  </div>
   <h2>Körperdaten-Import</h2>
   <p class="sub">RENPHO- oder Ultrahuman-CSV importieren. Format wird automatisch erkannt, Dubletten entfernt, pro Tag die Morgenmessung (früheste Zeit) übernommen.</p>
   <div class="card">
@@ -2620,7 +2819,11 @@ function togglePlan(t,id){
   for (const id in S.exercises){ if(!S.exercises[id].muscle) S.exercises[id].muscle = MUMAP[id] || "other"; }
   /* v1.7: Körpermetriken-Array nachtragen */
   if (!S.bodyweight.metrics) S.bodyweight.metrics = [];
+  /* v2.0: Sync-Metadaten (jüngeres updatedAt gewinnt beim Cloud-Abgleich) */
+  if (!S.updatedAt) S.updatedAt = Date.now();
+  if (!S.lastDevice) S.lastDevice = deviceLabel();
   render();
+  bootSync();   /* v2.0: optionaler stiller Cloud-Abgleich beim Start (nur wenn Auto-Sync an) */
 
   /* ================= v1.9: SWIPE GESTURES ================= */
   const TAB_ORDER = ["home","history","charts","report","marble","settings"];
