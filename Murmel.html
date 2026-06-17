@@ -454,12 +454,14 @@ function autoSyncOn(){ return lg("autosync")==="1"; }
 function setAutoSync(on){ lsx("autosync", on?"1":"0"); if(on) cloudSync(true); render(); }
 function gConnected(){ return lg("connected")==="1" && !!gClientId(); }
 
-let _gAccessToken=null, _gTokenExp=0, _gTokenClient=null, _gCid="", _gResolve=null;
+let _gAccessToken=null, _gTokenExp=0, _gTokenClient=null, _gCid="", _gResolve=null, _gInteractive=false;
 function gReady(){ return typeof google!=="undefined" && google.accounts && google.accounts.oauth2; }
+function openSyncSetup(){ try{ const d=document.getElementById("syncSetup"); if(d){ d.open=true; d.scrollIntoView({behavior:"smooth",block:"center"}); } }catch(e){} }
 function gToken(interactive){
   return new Promise(resolve=>{
     const cid=gClientId();
-    if(!cid || !gReady()){ resolve(null); return; }
+    if(!cid){ if(interactive){ toast("Keine OAuth-Client-ID — bitte unten unter Einrichtung eintragen"); openSyncSetup(); } resolve(null); return; }
+    if(!gReady()){ if(interactive) toast("Google-Login-Bibliothek nicht geladen — Internet/Adblocker prüfen, dann neu laden"); resolve(null); return; }
     if(_gAccessToken && Date.now()<_gTokenExp-60000){ resolve(_gAccessToken); return; }
     try{
       if(!_gTokenClient || _gCid!==cid){
@@ -468,13 +470,18 @@ function gToken(interactive){
           client_id:cid, scope:G_SCOPE,
           callback:r=>{ const cb=_gResolve; _gResolve=null;
             if(r && r.access_token){ _gAccessToken=r.access_token; _gTokenExp=Date.now()+(r.expires_in?r.expires_in*1000:3600000); lsx("connected","1"); if(cb)cb(_gAccessToken); }
-            else if(cb) cb(null); },
-          error_callback:()=>{ const cb=_gResolve; _gResolve=null; if(cb)cb(null); }
+            else { if(_gInteractive) toast("Anmeldung fehlgeschlagen"+(r&&r.error?": "+r.error:"")); if(cb)cb(null); } },
+          error_callback:err=>{ const cb=_gResolve; _gResolve=null;
+            if(_gInteractive){ const ty=err&&err.type;
+              toast(ty==="popup_failed_to_open" ? "Popup blockiert — Pop-ups für diese Seite erlauben & erneut tippen"
+                  : ty==="popup_closed" ? "Fenster wurde geschlossen, bevor die Anmeldung fertig war"
+                  : "Google-Fehler"+(ty?": "+ty:"")+" — meist falsche Quelle/Origin oder kein Test-User"); }
+            if(cb)cb(null); }
         });
       }
-      _gResolve=resolve;
+      _gInteractive=!!interactive; _gResolve=resolve;
       _gTokenClient.requestAccessToken({prompt: interactive?"":"none"});
-    }catch(e){ resolve(null); }
+    }catch(e){ if(interactive) toast("Fehler beim Start: "+(e&&e.message||e)); resolve(null); }
   });
 }
 function gSignOut(){
@@ -2686,7 +2693,7 @@ function vSettings(){
     <div style="margin-top:14px">
       <div class="lbl" style="margin-bottom:6px">Gerätename</div>
       <input type="text" id="devIn" placeholder="z.B. iPhone von Mauricio" value="${esc(deviceLabel())}" onchange="setDeviceLabel(this.value)"></div>
-    <details class="lastblock" style="margin-top:14px"><summary>Einrichtung (einmalig) ▾</summary>
+    <details id="syncSetup" class="lastblock" style="margin-top:14px"><summary>Einrichtung (einmalig) ▾</summary>
       <div class="mut small" style="line-height:1.8; margin-top:8px">
         1. Projekt anlegen unter <span style="font-family:var(--mono)">console.cloud.google.com</span><br>
         2. „APIs &amp; Dienste" → OAuth-Zustimmungsbildschirm (extern) einrichten, dich selbst als Test-User eintragen<br>
