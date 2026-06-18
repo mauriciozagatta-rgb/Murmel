@@ -851,11 +851,13 @@ function suggest(exId){
   const pl = plateauInfo(exId);
   const e1 = Math.max(...sets.map(s=>e1rm(s.kg||0,s.reps||0)));
   let kg, outSets, hint, cls="", goal="";
-
-  if (pl.deload){
+  /* v4.0: Deload-Modus (Plateau ODER Mikro-Periodisierungs-Woche 4 ODER Smart-Deload aktiv) */
+  const isDeloadWeek = cycleWeek()===4 || !!(S.gami&&S.gami.deloadActive);
+  if (pl.deload || isDeloadWeek){
+    const reason=isDeloadWeek&&!pl.deload?"Deload-Woche (Zyklus Woche 4)":"Plateau: "+pl.sessions+"× kein neuer Höchstwert";
     kg = roundToInc(baseKg*0.9, ex.increment);
     outSets = sets.map(()=>({kg, reps:ex.repMin}));
-    hint = "Deload: "+pl.sessions+"× kein neuer Höchstwert. ~10 % runter, dafür sauber & explosiv.";
+    hint = reason+" → ~10 % runter, dafür sauber & explosiv.";
     cls = "hold";
     goal = "🎯 Ziel: "+ex.repMin+"–"+ex.repMax+" Reps bei "+fmt(kg)+" kg mit perfekter Technik – dann neu angreifen.";
   } else if (allMax){
@@ -1029,6 +1031,7 @@ function showRankUpOverlay(newRank){
     <div class="rankup-lbl">Rang-Aufstieg 🎉</div>
     <div class="rankup-name" style="color:${newRank.core}">${newRank.name}</div>
     <div class="rankup-sub">Du hast ${newRank.name} erreicht${(S.gami.prestige||0)>0?" · Prestige ★"+S.gami.prestige:""}.<br>Weiter so, Murmel!</div>
+    ${newRank.lore?`<div class="mut" style="font-size:13px;margin:10px 8px 4px;font-style:italic">"${newRank.lore}"</div>`:""}
     <button class="btn full" style="max-width:220px" onclick="document.getElementById('rankup-overlay')?.remove()">Weiter</button>
   </div>`;
   el.addEventListener("click", e=>{ if(e.target===el) el.remove(); });
@@ -1110,7 +1113,10 @@ function vHome(){
   const bw = bwLog[0], prevBw = bwLog[1];
   const due = dueType();
   const g = computeGami();
-  const _dq = dailyQuest(), _dqProg = dailyQuestProg(_dq, g);
+  const _wc = weeklyChallenge(g), _wcProg = weeklyChallengeProgress(_wc, g);
+  const _wcMult = challengeMultiplier();
+  const _forecast = trainingForecast();
+  const _deloadSuggested = checkSmartDeload();
 
   /* Greeting */
   const now = new Date();
@@ -1174,12 +1180,15 @@ function vHome(){
       <div class="row"><div class="grow"><b>Laufende ${TYPES[S.draft.type].label}-Session</b><div class="mut">${dLong(S.draft.date)}</div></div>
       <button class="btn accent" onclick="go('session')">Fortsetzen</button></div></div>` : ""}
   ${typeCards}
-  <h2>Tages-Quest</h2>
-  <div class="quest ${_dq.claimed?'done':''}">
-    <div class="row"><div class="grow"><b>${_dq.name}</b>${_dq.claimed?' <span class="delta up">✅ erledigt</span>':""}
-      <div class="mut" style="margin-top:2px">${_dq.desc}</div></div></div>
-    <div class="pbar" style="margin-top:10px"><div class="pfill" style="width:${Math.min(100,_dqProg/_dq.target*100).toFixed(0)}%;background:${_dq.claimed?'var(--legs)':'var(--pull)'}"></div></div>
-    <div class="mut num" style="margin-top:6px">${_dqProg}/${_dq.target}${_dq.claimed?' · +5 🪙 erhalten':''}</div>
+  ${_deloadSuggested?`<div class="backup" style="border-color:var(--hold)"><div class="grow">😴 Murmel empfiehlt eine Deload-Woche — Recovery 3+ Tage niedrig.</div><button onclick="S.gami.deloadActive=true;save();render()">Aktivieren</button></div>`:""}
+  ${_forecast?`<h2>📡 Wochenvorschau</h2><div class="card"><div class="row" style="gap:0;justify-content:space-between">${_forecast.map(f=>`<div style="text-align:center;flex:1"><div style="font-size:20px">${f.icon}</div><div style="font-size:10px;color:var(--mut)">${f.dayName}</div></div>`).join("")}</div></div>`:""}
+  <h2>Wochen-Challenge</h2>
+  <div class="quest ${_wc.claimed?'done':''}">
+    <div class="row"><div class="grow"><b>${_wc.name}</b>${_wc.claimed?' <span class="delta up">✅ erledigt</span>':""}
+      ${_wcMult>1?`<span class="badge" style="background:rgba(255,69,58,.15);color:var(--push);margin-left:6px">×${_wcMult} Streak</span>`:""}
+      <div class="mut" style="margin-top:2px">${_wc.desc}</div></div></div>
+    <div class="pbar" style="margin-top:10px"><div class="pfill" style="width:${Math.min(100,_wcProg/_wc.target*100).toFixed(0)}%;background:${_wc.claimed?'var(--legs)':'var(--pull)'}"></div></div>
+    <div class="mut num" style="margin-top:6px">${_wcProg}/${_wc.target}${_wc.claimed?' · +'+(Math.round(25*_wcMult))+'🪙 erhalten':''}</div>
   </div>
   <h2>Körpergewicht</h2>
   <div class="card">
@@ -1210,12 +1219,7 @@ function startSession(type){
     _startArm=false;
   }
   if (!S.draft || S.draft.type!==type){
-    S.draft = { type, date: todayStr(), startedAt: Date.now(),
-      entries: S.plan[type].map(exId=>{
-        const sg = suggest(exId);
-        return { exerciseId:exId, sets:sg.sets.map(s=>({...s, done:false})), notes:"", hint:sg.hint, hintCls:sg.cls, goal:sg.goal };
-      })};
-    save();
+    showMoodPicker(type); return;
   }
   go("session");
 }
@@ -1587,7 +1591,9 @@ function vCharts(){
     <button class="${chartTab==="ex"?"on":""}" onclick="chartTab='ex';render()">Übungen</button>
     <button class="${chartTab==="vol"?"on":""}" onclick="chartTab='vol';render()">Volumen</button>
     <button class="${chartTab==="mus"?"on":""}" onclick="chartTab='mus';render()">Muskeln</button>
-    <button class="${chartTab==="bw"?"on":""}" onclick="chartTab='bw';render()">Körper</button></div>`;
+    <button class="${chartTab==="bw"?"on":""}" onclick="chartTab='bw';render()">Körper</button>
+    <button class="${chartTab==="duel"?"on":""}" onclick="chartTab='duel';render()">Duell</button>
+    <button class="${chartTab==="body"?"on":""}" onclick="chartTab='body';render()">Silhouette</button></div>`;
   let body="";
   if (chartTab==="ex"){
     if(!S.sessions.length){ body=emptyState("Noch keine Daten","Trainiere ein paar Sessions — dann erscheinen hier deine Fortschrittskurven."); }
@@ -1618,6 +1624,15 @@ function vCharts(){
           <span class="dot" style="background:var(--gold)"></span>&nbsp;e1RM ${showE1rm?"ausblenden":"einblenden"}</button></div>
       <p class="mut small" style="margin:8px 0 0">e1RM = geschätztes 1-Wiederholungs-Maximum (Epley: kg × (1 + Reps/30)). Steigt es bei gleichem Gewicht, wirst du stärker, auch ohne Gewichtserhöhung.</p>`}
       </div>`;
+    /* v4.0: Max-Lift-Projektor */
+    const _proj=maxLiftProjection(chartEx);
+    if(_proj&&!_proj.achieved) body+=`<div class="card" style="margin-top:12px">
+      <div class="lbl">🎯 Ziel-Projektion</div>
+      <div class="row" style="margin-top:8px"><div class="grow"><b>${S.exercises[chartEx]?.name}</b><div class="mut" style="font-size:12px">${fmt(_proj.cur)} kg → ${fmt(_proj.target)} kg</div></div>
+      <div style="text-align:right"><b class="num" style="font-size:18px">~${_proj.weeksNeeded}W</b><div class="mut" style="font-size:11px">ca. ${dShort(_proj.targetDate)}</div></div></div>
+      <div class="pbar" style="margin-top:8px"><div class="pfill" style="width:${Math.min(100,_proj.cur/_proj.target*100).toFixed(0)}%;background:var(--legs)"></div></div>
+      <p class="mut small" style="margin-top:6px">+${fmt(_proj.slope)} kg e1RM pro Session im Schnitt</p></div>`;
+    else if(_proj?.achieved) body+=`<div class="card" style="margin-top:12px"><div class="hint up">🎉 Ziel ${fmt(_proj.target)} kg erreicht!</div></div>`;
     } /* end else no-sessions-guard */
   }
   if (chartTab==="vol"){
@@ -1734,6 +1749,20 @@ function vCharts(){
       <div class="card">${[...S.bodyweight.log].sort((a,b)=>a.date<b.date?1:-1).map(e=>`
         <div class="list-item"><div class="grow"><b class="num">${fmt(e.kg)} kg</b> <span class="mut num">· ${dLong(e.date)}</span></div>
         <button class="btn ghost danger" onclick="delBw('${e.date}')">✕</button></div>`).join("") || '<div class="mut">Noch keine Einträge.</div>'}</div>`;
+  }
+  if (chartTab==="duel"){
+    body=`<h2>Übungs-Duell</h2><div class="card">${duelExHtml()}</div>`;
+  }
+  if (chartTab==="body"){
+    body=`<h2>Körper-Silhouette</h2><p class="sub" style="margin-top:-8px">Trainierte Muskelgruppen der letzten 7 Tage</p>
+    <div class="card" style="padding:20px">${bodySilhouetteSVG()}
+    <div class="row" style="margin-top:14px;gap:10px;flex-wrap:wrap;justify-content:center;font-size:11px">
+      <span><span style="color:#FF453A">■</span> Push</span>
+      <span><span style="color:#0A84FF">■</span> Pull/Rücken</span>
+      <span><span style="color:#30D158">■</span> Beine</span>
+      <span><span style="color:#FFD60A">■</span> Hamstrings</span>
+      <span style="color:var(--mut)">Intensität = Satz-Volumen</span>
+    </div></div>`;
   }
   return `<h1>Charts</h1><p class="sub">Fortschritt über Zeit</p>${seg}${body}`;
 }
@@ -1994,19 +2023,19 @@ function weekReport(){
 
 /* ---------- MURMEL / GAMIFICATION ---------- */
 const RANKS = [
-  { key:"holz",     name:"Holz",     min:0,     core:"#7A5230", edge:"#4A2F18", hi:"rgba(255,230,190,.35)", glow:"rgba(160,110,60,.3)",  kind:"matte",  grain:true },
-  { key:"stein",    name:"Stein",    min:100,   core:"#8C9094", edge:"#565A5F", hi:"rgba(255,255,255,.3)",  glow:"rgba(140,144,148,.3)", kind:"matte",  speck:true },
-  { key:"bronze",   name:"Bronze",   min:250,   core:"#C77B3C", edge:"#7A4517", hi:"rgba(255,225,180,.7)",  glow:"rgba(199,123,60,.45)", kind:"metal" },
-  { key:"eisen",    name:"Eisen",    min:450,   core:"#8A929B", edge:"#474D54", hi:"rgba(255,255,255,.75)", glow:"rgba(138,146,155,.4)", kind:"metal" },
-  { key:"silber",   name:"Silber",   min:700,   core:"#D6DBE0", edge:"#878E96", hi:"rgba(255,255,255,.9)",  glow:"rgba(214,219,224,.5)", kind:"metal" },
-  { key:"gold",     name:"Gold",     min:1050,  core:"#F2C849", edge:"#A9791A", hi:"rgba(255,250,210,.95)", glow:"rgba(242,200,73,.55)", kind:"metal" },
-  { key:"platin",   name:"Platin",   min:1500,  core:"#E8EBEF", edge:"#9AA6B0", hi:"rgba(255,255,255,1)",   glow:"rgba(232,235,239,.6)", kind:"metal" },
-  { key:"smaragd",  name:"Smaragd",  min:2100,  core:"#2FBF71", edge:"#0E6B3C", hi:"rgba(220,255,235,.85)", glow:"rgba(47,191,113,.6)",  kind:"gem" },
-  { key:"saphir",   name:"Saphir",   min:2900,  core:"#2E7DF2", edge:"#123E86", hi:"rgba(220,235,255,.85)", glow:"rgba(46,125,242,.6)",  kind:"gem" },
-  { key:"rubin",    name:"Rubin",    min:3900,  core:"#E23B5B", edge:"#841326", hi:"rgba(255,225,232,.85)", glow:"rgba(226,59,91,.6)",   kind:"gem" },
-  { key:"diamant",  name:"Diamant",  min:5100,  core:"#CFE9F5", edge:"#7FA8BD", hi:"rgba(255,255,255,1)",   glow:"rgba(207,233,245,.7)", kind:"diamond" },
-  { key:"obsidian", name:"Obsidian", min:6500,  core:"#2A2D33", edge:"#0A0B0D", hi:"rgba(180,190,210,.9)",  glow:"rgba(120,130,160,.5)", kind:"metal" },
-  { key:"legende",  name:"Legende",  min:8000,  core:"#9b5de5", edge:"#3a0ca3", hi:"rgba(255,255,255,.95)", glow:"rgba(155,93,229,.7)",  kind:"iridescent" }
+  { key:"holz",     name:"Holz",     min:0,     core:"#7A5230", edge:"#4A2F18", hi:"rgba(255,230,190,.35)", glow:"rgba(160,110,60,.3)",  kind:"matte",  grain:true,  lore:"Jeder fängt irgendwo an. Aus Holz wird mit der Zeit etwas Härteres." },
+  { key:"stein",    name:"Stein",    min:100,   core:"#8C9094", edge:"#565A5F", hi:"rgba(255,255,255,.3)",  glow:"rgba(140,144,148,.3)", kind:"matte",  speck:true,  lore:"Roh, aber beständig. Stein hält, was Holz noch nicht kann." },
+  { key:"bronze",   name:"Bronze",   min:250,   core:"#C77B3C", edge:"#7A4517", hi:"rgba(255,225,180,.7)",  glow:"rgba(199,123,60,.45)", kind:"metal",               lore:"Erster Glanz. Jemand schaut dir jetzt zu — und nickt." },
+  { key:"eisen",    name:"Eisen",    min:450,   core:"#8A929B", edge:"#474D54", hi:"rgba(255,255,255,.75)", glow:"rgba(138,146,155,.4)", kind:"metal",               lore:"Kein Widerstand bleibt ohne Spuren. Eisen formt sich, aber bleibt." },
+  { key:"silber",   name:"Silber",   min:700,   core:"#D6DBE0", edge:"#878E96", hi:"rgba(255,255,255,.9)",  glow:"rgba(214,219,224,.5)", kind:"metal",               lore:"Silber glänzt nicht laut. Aber wer genau hinschaut, sieht den Unterschied." },
+  { key:"gold",     name:"Gold",     min:1050,  core:"#F2C849", edge:"#A9791A", hi:"rgba(255,250,210,.95)", glow:"rgba(242,200,73,.55)", kind:"metal",               lore:"Gold ist Geduld in fester Form. Du weißt jetzt, was du tust." },
+  { key:"platin",   name:"Platin",   min:1500,  core:"#E8EBEF", edge:"#9AA6B0", hi:"rgba(255,255,255,1)",   glow:"rgba(232,235,239,.6)", kind:"metal",               lore:"Seltener als Gold. Die meisten hören vorher auf." },
+  { key:"smaragd",  name:"Smaragd",  min:2100,  core:"#2FBF71", edge:"#0E6B3C", hi:"rgba(220,255,235,.85)", glow:"rgba(47,191,113,.6)",  kind:"gem",                 lore:"Grün wie Wachstum. Du bist nicht mehr derselbe wie am Anfang." },
+  { key:"saphir",   name:"Saphir",   min:2900,  core:"#2E7DF2", edge:"#123E86", hi:"rgba(220,235,255,.85)", glow:"rgba(46,125,242,.6)",  kind:"gem",                 lore:"Tiefblau wie Konzentration. Hier scheiden sich die Wege." },
+  { key:"rubin",    name:"Rubin",    min:3900,  core:"#E23B5B", edge:"#841326", hi:"rgba(255,225,232,.85)", glow:"rgba(226,59,91,.6)",   kind:"gem",                 lore:"Intensiv. Feurig. Rubin kennt keinen Halbherzigkeit." },
+  { key:"diamant",  name:"Diamant",  min:5100,  core:"#CFE9F5", edge:"#7FA8BD", hi:"rgba(255,255,255,1)",   glow:"rgba(207,233,245,.7)", kind:"diamond",             lore:"Unter Druck entstanden. Du hast gehalten, als andere nachgaben." },
+  { key:"obsidian", name:"Obsidian", min:6500,  core:"#2A2D33", edge:"#0A0B0D", hi:"rgba(180,190,210,.9)",  glow:"rgba(120,130,160,.5)", kind:"metal",               lore:"Obsidian entsteht, wenn Feuer auf Kälte trifft. Beides kennst du jetzt." },
+  { key:"legende",  name:"Legende",  min:8000,  core:"#9b5de5", edge:"#3a0ca3", hi:"rgba(255,255,255,.95)", glow:"rgba(155,93,229,.7)",  kind:"iridescent",          lore:"Nur wenige rollen so weit. Du bist eine von ihnen. Prestige wartet." }
 ];
 const STATES = [
   { key:"faul",      name:"Faul",      min:0, anim:"marble-lazy",   desc:"Die Murmel döst vor sich hin." },
@@ -2072,13 +2101,38 @@ function computeGami(){
 }
 const SEASON_EPOCH = "2026-06-01"; /* Montag */
 
-/* v3.0: Welle C — Challenge-Pools */
-const DAILY_POOL = [
-  {key:"train",    name:"Heute trainieren",     desc:"Eine Session heute abschließen.",                   target:1},
-  {key:"improve1", name:"Eine Übung steigern",  desc:"Bei einer Übung heute mehr als zuletzt schaffen.",  target:1},
-  {key:"setcount", name:"9 Sätze loggen",       desc:"Mind. 9 Sätze in der heutigen Session erfassen.",  target:9},
-  {key:"rirlog",   name:"RIR notieren",         desc:"Bei mind. 3 Sätzen heute den RIR-Wert eintragen.", target:3},
-  {key:"nobreak",  name:"Session durchziehen",  desc:"Training starten und vollständig beenden.",         target:1},
+/* v4.0: Welle E — Wochen-Challenge (ersetzt Daily Quest) */
+const WEEKLY_CHALLENGE_POOL = [
+  {key:"improve3",  name:"Steigere 3 Übungen",         desc:"Bei 3 verschiedenen Übungen diese Woche mehr als zuletzt schaffen.", target:3},
+  {key:"pr2",       name:"2 neue Bestleistungen",       desc:"2 persönliche Rekorde diese Woche aufstellen.",                     target:2},
+  {key:"fullppl",   name:"Voller Split",                desc:"Push, Pull und Legs je einmal diese Woche trainieren.",             target:3},
+  {key:"volume10k", name:"10.000 kg Tonnage",           desc:"10.000 kg Gesamt-Volumen diese Woche heben.",                      target:10000},
+  {key:"rir9sets",  name:"RIR bei 9 Sätzen",            desc:"Den RIR-Wert bei mindestens 9 Sätzen diese Woche notieren.",       target:9},
+  {key:"setmax30",  name:"30 Sätze diese Woche",        desc:"Mindestens 30 Sätze insgesamt diese Woche loggen.",                target:30},
+];
+/* v4.0: Plateau-Variationen je Übungs-Typ */
+const PLATEAU_VARS = {
+  chest:  [{k:"tempo",   l:"Tempo 4-1-1",        d:"4s runter, 1s halten, 1s hoch – Intensität steigt ohne mehr Gewicht."},
+           {k:"incline", l:"Schrägbank-Woche",    d:"Fokus auf Schrägbank statt Flachbank – anderer Winkel, neuer Reiz."},
+           {k:"dropset", l:"Dropset-Finale",      d:"Letzter Satz: Gewicht halbieren, sofort weiter bis Muskelversagen."}],
+  back:   [{k:"tempo",   l:"Tempo 3-1-2",        d:"3s ziehen, 1s halten, 2s zurück – mehr Zeit unter Spannung."},
+           {k:"grip",    l:"Enger Griff",         d:"Enger Griff beim Latziehen oder Rudern – andere Faserrekrutierung."},
+           {k:"pause",   l:"Pause-Reps",          d:"Oben 2s halten pro Wiederholung – Kontraktionsqualität verbessern."}],
+  shoulders:[{k:"super", l:"Supersatz Seite+Front",d:"Seitheben + Frontheben als Supersatz – mehr Schulter-Volumen."},
+             {k:"unilat",l:"Einseitig",           d:"Eine Schulter zur Zeit – Ungleichgewichte ausgleichen."},
+             {k:"tempo", l:"Slow Eccentric",       d:"6s senken beim Schulterdrücken – exzentrische Überlastung."}],
+  quads:  [{k:"pause",   l:"Pause-Squat/Press",   d:"2s unten halten – Schwungkraft eliminieren, mehr Kraft."},
+           {k:"tempo",   l:"Slow Eccentric",       d:"4s senken bei Beinpresse oder Squat."},
+           {k:"unilat",  l:"Einbeinige Variante",  d:"Einbeinige Beinpresse oder Bulgarian Split Squat als Alternative."}],
+  default:[{k:"tempo",   l:"Tempo ändern",        d:"Versuche 3-1-2 Tempo – runter/halten/hoch."},
+           {k:"range",   l:"Rep-Range wechseln",  d:"Falls du bei 8–12 stagnierst: eine Woche 15–20 Reps mit weniger Gewicht."},
+           {k:"rest",    l:"Längere Pause",        d:"3 Minuten Satzpause statt 90s – mehr Kraft pro Satz abrufbar."}],
+};
+/* v4.0: Habit-Defaults */
+const DEFAULT_HABITS = [
+  {key:"sleep",    name:"Vor 23 Uhr schlafen", icon:"😴"},
+  {key:"protein",  name:"Protein-Ziel",         icon:"🥩"},
+  {key:"noalc",    name:"Kein Alkohol",          icon:"🚫"},
 ];
 const STORY_CHAINS = [
   { id:"chest_blitz",  name:"Brust-Offensive",   icon:"🔴",
@@ -2217,12 +2271,21 @@ function murmelQuote(g){
     "Ruhetage sind wichtig. Ich warte gerne.",
     "Ich bin bereit, wenn du es bist.",
   ]);
-  /* 3. Frisch poliert + PR heute */
-  if(trainedToday && lastSess.bd.pr) return rot([
-    "Neuer Rekord! Ich glänze heute besonders. 🏆",
-    "PR geknackt – das spür ich bis in den Kern!",
-    "Historisch. Absolut historisch.",
-  ]);
+  /* 3. Frisch poliert + PR heute — mit konkretem Gewicht/Übungsname */
+  if(trainedToday && lastSess.bd.pr){
+    try{
+      const prSess=S.sessions.find(s=>s.id===lastSess.id);
+      const prEntry=prSess&&prSess.entries.find(e=>{ const ex2=S.exercises[e.exerciseId]; return ex2&&e.sets.some(st=>st.kg>0); });
+      const prEx=prEntry&&S.exercises[prEntry.exerciseId];
+      const prKg=prEntry&&Math.max(...prEntry.sets.map(st=>st.kg||0));
+      if(prEx&&prKg) return rot([
+        `${prKg} kg ${prEx.name} — das spür ich bis in den Kern! 💥`,
+        `Neuer Rekord bei ${prEx.name}. ${prKg} kg. Historisch.`,
+        `${prEx.name}, ${prKg} kg — ich glänze heute besonders. 🏆`,
+      ]);
+    }catch(e){}
+    return rot(["Neuer Rekord! Ich glänze heute besonders. 🏆","PR geknackt – das spür ich!","Historisch. Absolut historisch."]);
+  }
   /* 4. Frisch poliert, kein PR */
   if(trainedToday) return rot([
     "Frisch poliert und bereit. Stark heute!",
@@ -2545,7 +2608,7 @@ function murmelAccessories(g){
 function sessionHighlights(sid){
   const sorted=[...S.sessions].filter(s=>s.date<=todayStr())
     .sort((a,b)=> a.date<b.date?-1 : a.date>b.date?1 : (a.id<b.id?-1:1));
-  const prevE1={}, bestPR={}; const out={improved:[], prs:[]};
+  const prevE1={}, bestPR={}; const out={improved:[], prs:[], plateaus:[]};
   for(const s of sorted){
     for(const e of s.entries){
       const ex=S.exercises[e.exerciseId]; if(!ex||!e.sets.length) continue;
@@ -2556,6 +2619,8 @@ function sessionHighlights(sid){
       if(s.id===sid){
         if(improved) out.improved.push(ex.name);
         if(isPR) out.prs.push({name:ex.name, val:pr.val, reps:pr.reps, unit:ex.unit==="seconds"?"s":"kg"});
+        const pi=ex.unit!=="seconds"?plateauInfo(e.exerciseId):{plateau:false};
+        if(pi.plateau&&!out.plateaus.includes(e.exerciseId)) out.plateaus.push(e.exerciseId);
       }
       prevE1[e.exerciseId]=curE1;
       if(b===undefined||pr.val>b.val||(Math.abs(pr.val-b.val)<1e-6&&pr.reps>b.reps)) bestPR[e.exerciseId]=pr;
@@ -2770,15 +2835,15 @@ function vMarble(){
     }).join('')}
     <p class="mut small" style="margin-top:10px">Abschluss: +${_cd.def.reward.coins} 🪙 + Trophäe</p>
   </div>` : "";
-  const bossHtml = _boss ? `<h2>${_boss.icon} Monats-Boss</h2>
-  <div class="card ${_boss.defeated?'t-legs':''}">
-    <div class="row"><div class="grow"><b>${_boss.name}</b>${_boss.defeated?' <span class="delta up">besiegt ✅</span>':""}
+  const bossHtml = _boss ? `<h2>${_boss.tierLabel||"⚔️ Monats-Boss"}</h2>
+  <div class="card">
+    <div class="row"><div class="grow"><b>${_boss.name}</b>
       <div class="mut" style="margin-top:2px;font-size:12px">${_boss.desc}</div></div></div>
-    <div class="pbar" style="margin-top:10px"><div class="pfill" style="width:${(_boss.pct*100).toFixed(0)}%;background:${_boss.defeated?'var(--legs)':'var(--push)'}"></div></div>
+    <div class="pbar" style="margin-top:10px"><div class="pfill" style="width:${(_boss.pct*100).toFixed(0)}%;background:var(--push)"></div></div>
     <div class="mut num" style="margin-top:6px">${fmt(_boss.prog)}/${fmt(_boss.target)} ${_boss.unit}</div>
-    ${!_boss.defeated&&_boss.pct>=1?`<button class="btn full accent" style="margin-top:10px" onclick="defeatBoss()">Boss besiegen! 🏆</button>`:''}
-    ${_boss.defeated?'':'<p class="mut small" style="margin-top:10px">Belohnung: +100 🪙 + Trophäe</p>'}
-  </div>` : "";
+    ${_boss.pct>=1?`<button class="btn full accent" style="margin-top:10px" onclick="defeatBoss()">Besiegen! 🏆 +${_boss.reward||100} 🪙</button>`:""}
+    <p class="mut small" style="margin-top:10px">Belohnung: +${_boss.reward||100} 🪙 + Trophäe</p>
+  </div>` : `<h2>⚔️ Monats-Boss</h2><div class="card"><div class="mut" style="text-align:center;padding:12px 0">Alle Bosse diesen Monat besiegt! 🎉</div></div>`;
   const shadowHtml = _sh ? `<h2>👤 Schatten</h2>
   <div class="card">
     <div class="row">
@@ -2811,6 +2876,36 @@ function vMarble(){
     <p class="mut small" style="margin-top:8px">Einmalig · nur in Saison ${se.num} erhältlich</p>
   </div>`;
   const regalHtml=buildRegalHtml(g);
+
+  /* v4.0 Welle G: Shadow Wochenpace */
+  const _swp = (()=>{ try{ return shadowWeekPace(g); }catch(e){ return null; } })();
+  const shadowHtmlFull = _sh ? `<h2>👤 Schatten</h2>
+  <div class="card">
+    <div class="row">
+      <div class="grow"><div class="lbl">Saison ${se.num}</div><b class="num" style="font-size:22px;color:var(--legs)">${fmt(_sh.curPts)} P</b></div>
+      <div style="text-align:right"><div class="lbl">Saison ${_sh.prevNum} (Tag ${_sh.dayOff})</div><b class="num" style="font-size:22px;color:var(--mut)">${fmt(_sh.prevPts)} P</b></div>
+    </div>
+    <div class="row" style="margin-top:8px"><span class="delta ${_sh.ahead>=0?'up':''}">${_sh.ahead>=0?'▲ +'+fmt(_sh.ahead):'▼ '+fmt(Math.abs(_sh.ahead))} P ${_sh.ahead>=0?'vor':'hinter'} deinem alten Ich</span></div>
+    ${_swp?`<div style="margin-top:12px"><div class="lbl">Wochenpace</div><div class="row" style="gap:4px;margin-top:6px">${_swp.map(w=>`<div style="flex:1;text-align:center"><div class="pbar" style="height:32px;background:var(--card2);position:relative"><div style="position:absolute;bottom:0;left:0;right:0;background:var(--legs);height:${Math.min(100,(w.cur/(Math.max(1,..._swp.map(x=>Math.max(x.cur,x.prev)))*100)).toFixed(0)+'%')}"></div></div><div class="mut num" style="font-size:9px">W${w.week}</div></div>`).join("")}</div></div>`:""}
+  </div>` : "";
+  /* v4.0 Welle H: Gewohnheits-Kette */
+  const _habits=habitsList();
+  const habitsHtml=_habits.length?`<h2>🔗 Gewohnheiten</h2><div class="card">${_habits.map(h=>{
+    const today=todayStr(); const done=!!(h.log.find(l=>l.date===today)?.done); const str=habitStreak(h);
+    return `<div class="row" style="padding:8px 0;${_habits.indexOf(h)>0?'border-top:1px solid var(--bord)':''}">
+      <span style="font-size:20px;width:28px">${h.icon}</span>
+      <div class="grow"><b style="font-size:13px">${h.name}</b>${str>0?`<span class="mut" style="font-size:11px;margin-left:8px">🔥${str}T Streak</span>`:""}
+      </div><button class="btn small ${done?'accent':''}" onclick="toggleHabit('${h.key}')">${done?'✓':'–'}</button>
+    </div>`;
+  }).join("")}<p class="mut small" style="margin-top:8px">+2 🪙 pro Gewohnheit/Tag</p></div>`:"";
+  /* v4.0 Welle I: Murmel-Tagebuch */
+  const _diary=S.gami.diary||[];
+  const diaryHtml=`<h2>📝 Murmel-Tagebuch</h2><div class="card">
+    ${_diary.length?_diary.slice(0,3).map(e=>`<div style="${_diary.indexOf(e)>0?'border-top:1px solid var(--bord);margin-top:10px;padding-top:10px':''}"><div class="lbl" style="margin-bottom:4px">KW ${e.weekKey?.split('-W')[1]||'?'}</div><div style="font-size:13px;line-height:1.6;color:var(--text)">${esc(e.text)}</div></div>`).join(""):`<p class="mut">Noch kein Eintrag. Lass Murmel schreiben!</p>`}
+    <button class="btn full" style="margin-top:12px" onclick="generateDiary()">✍️ Murmel schreibt jetzt</button>
+  </div>`;
+  /* v4.0 Welle G: Milestone */
+  const _milestoneHtml=(()=>{ try{ return milestoneCountdownHtml(g); }catch(e){ return ""; } })();
 
   return `<h1>Murmel${ikone?' <span class="badge" style="font-size:11px;background:rgba(10,132,255,.2);color:var(--pull)">Ikone</span>':''}</h1>
   <p class="sub">Dein Trainings-Level</p>
@@ -2852,7 +2947,10 @@ function vMarble(){
   </div>
   ${chainHtml}
   ${bossHtml}
-  ${shadowHtml}
+  ${shadowHtmlFull}
+  ${_milestoneHtml}
+  ${habitsHtml}
+  ${diaryHtml}
   <h2>Wochen-Quest</h2>
   <div class="quest ${q.done?"done":""}">
     <div class="row"><div class="grow"><b>${q.name}</b> ${q.done?'<span class="delta up">erfüllt ✓</span>':""}
@@ -2926,36 +3024,45 @@ function doPrestige(){
 }
 
 /* ===== v3.0: WELLE C — DAILY QUEST ===== */
-function dailyQuest(){
-  const today=todayStr(), dq=S.gami.daily;
-  if(!dq || dq.date!==today){
-    const dayNum=Math.floor(new Date(today+"T12:00:00").getTime()/86400000);
-    const def=DAILY_POOL[dayNum % DAILY_POOL.length];
-    const nd={date:today,key:def.key,name:def.name,desc:def.desc,target:def.target,done:false,claimed:false};
-    S.gami.daily=nd; save(); return nd;
+/* ===== v4.0 WELLE E: WOCHEN-CHALLENGE (ersetzt Daily Quest) ===== */
+function weeklyChallenge(g){
+  const wk=isoWeek(todayStr()); const gc=S.gami;
+  let wc=gc.weekChallenge;
+  if(!wc||wc.weekKey!==wk){
+    const wnum=parseInt((wk.split("-W")[1]||"0"),10);
+    const def=WEEKLY_CHALLENGE_POOL[wnum%WEEKLY_CHALLENGE_POOL.length];
+    wc={weekKey:wk,key:def.key,name:def.name,desc:def.desc,target:def.target,done:false,claimed:false};
+    gc.weekChallenge=wc; save();
   }
-  return dq;
+  return wc;
 }
-function dailyQuestProg(dq,g){
-  const today=todayStr();
-  const ts=S.sessions.filter(s=>s.date===today);
-  if(dq.key==="train"||dq.key==="nobreak") return Math.min(1,ts.length);
-  if(dq.key==="improve1") return Math.min(1,g.per.filter(p=>p.date===today&&p.bd.progression>0).length);
-  if(dq.key==="setcount") return ts.reduce((n,s)=>n+s.entries.reduce((m,e)=>m+e.sets.length,0),0);
-  if(dq.key==="rirlog") return ts.reduce((n,s)=>n+s.entries.reduce((m,e)=>m+e.sets.filter(st=>st.rir!=null).length,0),0);
+function weeklyChallengeProgress(wc,g){
+  const wk=isoWeek(todayStr());
+  const tw=g.per.filter(p=>isoWeek(p.date)===wk);
+  const tws=S.sessions.filter(s=>isoWeek(s.date)===wk);
+  if(wc.key==="improve3") return tw.reduce((n,p)=>n+(p.bd.progression>0?1:0),0);
+  if(wc.key==="pr2") return tw.reduce((n,p)=>n+Math.round(p.bd.pr/25),0);
+  if(wc.key==="fullppl") return new Set(tws.map(s=>s.type)).size;
+  if(wc.key==="volume10k") return Math.round(tws.reduce((n,s)=>n+sessionVolume(s),0));
+  if(wc.key==="rir9sets") return tws.reduce((n,s)=>n+s.entries.reduce((m,e)=>m+e.sets.filter(st=>st.rir!=null).length,0),0);
+  if(wc.key==="setmax30") return tws.reduce((n,s)=>n+s.entries.reduce((m,e)=>m+e.sets.length,0),0);
   return 0;
 }
-function checkAndClaimDailyQuest(){
+function challengeMultiplier(){ const s=(S.gami.challengeStreak||0); return s>=4?2:s>=2?1.5:1; }
+function checkAndClaimWeeklyChallenge(){
   try{
-    const dq=dailyQuest(); if(dq.claimed) return;
-    const g=computeGami(), prog=dailyQuestProg(dq,g);
-    if(prog>=dq.target){
-      S.gami.daily.done=true; S.gami.daily.claimed=true;
-      S.gami.bonusCoins=(S.gami.bonusCoins||0)+5; save();
-      setTimeout(()=>toast("Tagesquest erfüllt! +5 🪙 ✅"),800);
+    const g=computeGami(), wc=weeklyChallenge(g); if(wc.claimed) return;
+    const prog=weeklyChallengeProgress(wc,g);
+    if(prog>=wc.target){
+      const mult=challengeMultiplier(), reward=Math.round(25*mult);
+      S.gami.weekChallenge.done=true; S.gami.weekChallenge.claimed=true;
+      S.gami.challengeStreak=(S.gami.challengeStreak||0)+1;
+      S.gami.bonusCoins=(S.gami.bonusCoins||0)+reward; save();
+      setTimeout(()=>toast("Wochen-Challenge erfüllt! +"+reward+" 🪙"+(mult>1?" (×"+mult+"!)":"")+" ✅"),800);
     }
   }catch(e){}
 }
+function checkAndClaimDailyQuest(){ checkAndClaimWeeklyChallenge(); }
 
 /* ===== v3.0: WELLE C — STORY-KETTEN ===== */
 function chainStepProg(step,startDate,g){
@@ -3005,27 +3112,40 @@ function claimChainStep(){
   } else { save();render();toast("Etappe "+(curStep+1)+" ✓ — weiter zur nächsten!"); }
 }
 
-/* ===== v3.0: WELLE C — MONATS-BOSS ===== */
+/* ===== v4.0 WELLE E: MULTI-TIER BOSS ===== */
 function monthBoss(g){
-  const ym=todayStr().slice(0,7);
-  const mNum=parseInt(todayStr().slice(5,7),10)-1;
+  const ym=todayStr().slice(0,7), mNum=parseInt(todayStr().slice(5,7),10)-1;
   const def=BOSS_POOL[mNum%BOSS_POOL.length];
-  const prog=Math.min(def.target,def.prog(g,ym));
-  const defeated=!!(S.gami.boss&&S.gami.boss[ym]==="defeated");
-  return {...def,prog,defeated,pct:prog/def.target,ym};
+  const bRaw=S.gami.boss&&S.gami.boss[ym];
+  const bObj=typeof bRaw==="object"?bRaw:(bRaw==="defeated"?{main:"defeated"}:{});
+  if(!bObj.main||bObj.main!=="defeated"){
+    const prog=Math.min(def.target,def.prog(g,ym));
+    return {...def,prog,defeated:false,pct:prog/def.target,ym,tier:"main",tierLabel:"⚔️ Monatsboss",reward:100};
+  }
+  if(!bObj.bonus||bObj.bonus!=="defeated"){
+    const t=Math.round(def.target*1.5), prog=Math.min(t,def.prog(g,ym));
+    return {...def,name:"Herausforderer: "+def.name,prog,defeated:false,pct:prog/t,ym,tier:"bonus",tierLabel:"💀 Herausforderer",target:t,reward:50};
+  }
+  if(!bObj.ultra||bObj.ultra!=="defeated"){
+    const t=def.target*2, prog=Math.min(t,def.prog(g,ym));
+    return {...def,name:"Ultra-Boss: "+def.name,prog,defeated:false,pct:prog/t,ym,tier:"ultra",tierLabel:"☠️ Ultra-Boss",target:t,reward:75};
+  }
+  return null;
 }
 function defeatBoss(){
   const g=computeGami(), b=monthBoss(g);
-  if(b.defeated){toast("Boss bereits besiegt! 🎉");return;}
-  if(b.prog<b.target){toast(b.icon+" Noch nicht besiegt: "+b.prog+"/"+b.target+" "+b.unit);return;}
-  S.gami.boss=S.gami.boss||{};S.gami.boss[b.ym]="defeated";
-  S.gami.bonusCoins=(S.gami.bonusCoins||0)+100;
+  if(!b){toast("Alle Bosse diesen Monat besiegt! 🎉");return;}
+  if(b.prog<b.target){toast(b.tierLabel+": noch "+fmt(b.prog)+"/"+fmt(b.target)+" "+b.unit);return;}
+  S.gami.boss=S.gami.boss||{};
+  const bRaw=S.gami.boss[b.ym], bObj=typeof bRaw==="object"?bRaw:(bRaw==="defeated"?{main:"defeated"}:{});
+  bObj[b.tier]="defeated"; S.gami.boss[b.ym]=bObj;
+  S.gami.bonusCoins=(S.gami.bonusCoins||0)+(b.reward||100);
   S.gami.trophies=S.gami.trophies||{};
-  S.gami.trophies["boss_"+b.ym]={ts:Date.now(),kind:"boss",name:b.name};
-  /* Season-Skin bei Boss-Saison (num%3===1) */
-  const _bse=seasonInfo(g); if(_bse.num%3===1){ S.gami.owned=S.gami.owned||{}; S.gami.owned["season_"+_bse.num]=true; }
+  S.gami.trophies["boss_"+b.ym+"_"+b.tier]={ts:Date.now(),kind:"boss",name:b.name};
+  const _bse=seasonInfo(g); if(_bse.num%3===1&&b.tier==="main"){S.gami.owned=S.gami.owned||{};S.gami.owned["season_"+_bse.num]=true;}
   save();render();try{spawnConfetti();}catch(e){}
-  toast(b.icon+" "+b.name+" besiegt! +100 🪙 + Trophäe 🏆");
+  const nxt=monthBoss(computeGami());
+  toast(b.icon+" "+b.name+" besiegt! +"+(b.reward||100)+" 🪙"+(nxt?" · "+nxt.tierLabel+" freigeschaltet!":""));
 }
 
 /* ===== v3.0: WELLE C — SCHATTEN ===== */
@@ -3038,7 +3158,254 @@ function shadowData(g){
   return {curPts:se.pts,prevPts,ahead:se.pts-prevPts,dayOff,prevNum:se.num-1};
 }
 
-/* ===== v3.0: WELLE D — JAHRES-HEATMAP ===== */
+/* ===== v4.0 WELLE F: MAX-LIFT-PROJEKTOR ===== */
+function maxLiftProjection(exId){
+  const ser=e1Series(exId); if(ser.length<3) return null;
+  const recent=ser.slice(-8);
+  const n=recent.length;
+  const xs=recent.map((_,i)=>i), ys=recent.map(p=>p.e1);
+  const xm=xs.reduce((a,v)=>a+v,0)/n, ym=ys.reduce((a,v)=>a+v,0)/n;
+  const num=xs.reduce((a,v,i)=>a+(v-xm)*(ys[i]-ym),0);
+  const den=xs.reduce((a,v)=>a+(v-xm)**2,0);
+  if(den<1e-6) return null;
+  const slope=num/den, intercept=ym-slope*xm;
+  const ex=S.exercises[exId]; if(!ex||!ex.targetKg||slope<=0) return null;
+  const cur=ys[n-1], gap=ex.targetKg-cur;
+  if(gap<=0) return {achieved:true,cur,target:ex.targetKg};
+  const sessPerWeek=S.sessions.filter(s=>s.entries.some(e=>e.exerciseId===exId)).length
+    / Math.max(1,ser.length/2)*2;
+  const weeksNeeded=Math.ceil(gap/slope/Math.max(1,sessPerWeek/2));
+  const targetDate=addDays(todayStr(),weeksNeeded*7);
+  return {achieved:false,cur:Math.round(cur*10)/10,target:ex.targetKg,weeksNeeded,targetDate,slope:Math.round(slope*100)/100};
+}
+
+/* ===== v4.0 WELLE F: SESSION-REPLAY ===== */
+function sessionReplayHtml(sess){
+  if(!sess||!sess.entries.length) return "";
+  const rows=sess.entries.map(e=>{
+    const ex=S.exercises[e.exerciseId]; if(!ex||!e.sets.length) return "";
+    const setsStr=e.sets.map(st=>ex.unit==="seconds"?(st.seconds||"?")+"s":(st.kg||"?")+"kg×"+(st.reps||"?")).join(" · ");
+    return `<div style="padding:6px 0;border-top:1px solid var(--bord);font-size:13px"><b>${ex.name}</b><div class="mut" style="margin-top:2px">${setsStr}</div></div>`;
+  }).join("");
+  return `<details style="margin-top:12px"><summary style="font-size:13px;color:var(--mut);cursor:pointer">📋 Session-Replay</summary>${rows}</details>`;
+}
+
+/* ===== v4.0 WELLE F: TON-ZONE ===== */
+function showMoodPicker(type){
+  const existing=document.getElementById("mood-picker"); if(existing) existing.remove();
+  const el=document.createElement("div");
+  el.id="mood-picker"; el.className="rankup-overlay";
+  el.innerHTML=`<div class="rankup-inner" style="max-width:280px">
+    <div class="rankup-lbl">Wie fühlst du dich heute?</div>
+    <div style="display:flex;gap:14px;justify-content:center;margin:18px 0">
+      <button class="btn" style="font-size:28px;padding:14px 18px" onclick="startWithMood('${type}','ready')">🔥</button>
+      <button class="btn" style="font-size:28px;padding:14px 18px" onclick="startWithMood('${type}','ok')">😐</button>
+      <button class="btn" style="font-size:28px;padding:14px 18px" onclick="startWithMood('${type}','tired')">😴</button>
+    </div>
+    <div class="row" style="justify-content:center;gap:24px;font-size:11px;color:var(--mut)"><span>Bereit</span><span>Okay</span><span>Müde</span></div>
+    <button class="btn full" style="margin-top:16px" onclick="document.getElementById('mood-picker')?.remove()">Überspringen</button>
+  </div>`;
+  document.body.appendChild(el);
+}
+function startWithMood(type,mood){
+  try{ document.getElementById("mood-picker")?.remove(); }catch(e){}
+  if(!S.draft||S.draft.type!==type){
+    S.draft={type,date:todayStr(),startedAt:Date.now(),mood,
+      entries:S.plan[type].map(exId=>{
+        const sg=suggest(exId);
+        return{exerciseId:exId,sets:sg.sets.map(s=>({...s,done:false})),notes:"",hint:sg.hint,hintCls:sg.cls,goal:sg.goal};
+      })};
+    save();
+  } else { S.draft.mood=mood; save(); }
+  go("session");
+}
+
+/* ===== v4.0 WELLE F: ÜBUNGS-DUELL ===== */
+let duelA=null, duelB=null;
+function duelExHtml(){
+  const exList=Object.values(S.exercises).filter(e=>e.unit!=="seconds");
+  const opts=exList.map(e=>`<option value="${e.id}" ${duelA===e.id?"selected":""}>${e.name}</option>`).join("");
+  const optsB=exList.map(e=>`<option value="${e.id}" ${duelB===e.id?"selected":""}>${e.name}</option>`).join("");
+  const serA=duelA?e1Series(duelA):[], serB=duelB?e1Series(duelB):[];
+  let chartHtml="<p class='mut' style='text-align:center;padding:20px 0'>Zwei Übungen wählen für den Vergleich.</p>";
+  if(serA.length>1&&serB.length>1){
+    const allDates=[...new Set([...serA.map(p=>p.date),...serB.map(p=>p.date)])].sort();
+    const normalize=ser=>{
+      const m=Math.max(...ser.map(p=>p.e1)); return ser.map(p=>({...p,v:Math.round(p.e1/m*100)}));
+    };
+    const nA=normalize(serA), nB=normalize(serB);
+    const dataA=allDates.map(d=>({date:d,v:nA.find(p=>p.date===d)?.v??null}));
+    const dataB=allDates.map(d=>({date:d,v:nB.find(p=>p.date===d)?.v??null}));
+    chartHtml=lineChart([{label:S.exercises[duelA].name,data:dataA,color:"var(--push)"},{label:S.exercises[duelB].name,data:dataB,color:"var(--pull)"}],"% des Maximalwerts");
+  }
+  return `<div class="row" style="gap:8px;margin-bottom:12px">
+    <select class="grow" onchange="duelA=this.value;render()">${opts}</select>
+    <span style="color:var(--mut);font-weight:700">vs.</span>
+    <select class="grow" onchange="duelB=this.value;render()">${optsB}</select>
+  </div>${chartHtml}`;
+}
+
+/* ===== v4.0 WELLE G: KÖRPER-SILHOUETTE ===== */
+function bodySilhouetteSVG(){
+  const today=todayStr(), wk7=addDays(today,-6);
+  const recent=S.sessions.filter(s=>s.date>=wk7&&s.date<=today);
+  // Muskelgruppen aus Sessions ableiten
+  const trained={};
+  for(const s of recent){
+    for(const e of s.entries){
+      const ex=S.exercises[e.exerciseId]; if(!ex) continue;
+      trained[ex.muscle]=(trained[ex.muscle]||0)+e.sets.length;
+    }
+  }
+  const maxSets=Math.max(1,...Object.values(trained));
+  const col=(m,c)=>{ const v=trained[m]||0; const op=(0.3+0.7*v/maxSets).toFixed(2); return v?`fill="${c}" opacity="${op}"`:'fill="#1A1D22" opacity="0.4"'; };
+  return `<svg viewBox="0 0 120 240" width="120" height="240" style="display:block;margin:0 auto">
+    <!-- Kopf --><circle cx="60" cy="22" r="16" fill="#2A2D33"/>
+    <!-- Hals --><rect x="55" y="36" width="10" height="8" rx="3" fill="#2A2D33"/>
+    <!-- Brust --><ellipse cx="60" cy="72" rx="24" ry="20" ${col("chest","#FF453A")}/>
+    <!-- Schultern --><ellipse cx="32" cy="60" rx="12" ry="10" ${col("shoulders","#FF8C42")}/>
+    <ellipse cx="88" cy="60" rx="12" ry="10" ${col("shoulders","#FF8C42")}/>
+    <!-- Trizeps --><ellipse cx="25" cy="80" rx="9" ry="13" ${col("triceps","#FF453A")}/>
+    <ellipse cx="95" cy="80" rx="9" ry="13" ${col("triceps","#FF453A")}/>
+    <!-- Bizeps --><ellipse cx="25" cy="80" rx="7" ry="10" ${col("biceps","#0A84FF")}/>
+    <ellipse cx="95" cy="80" rx="7" ry="10" ${col("biceps","#0A84FF")}/>
+    <!-- Unterarme --><rect x="18" y="92" width="12" height="20" rx="5" fill="#1C1F24" opacity="0.6"/>
+    <rect x="90" y="92" width="12" height="20" rx="5" fill="#1C1F24" opacity="0.6"/>
+    <!-- Rücken/Lats --><path d="M36 56 Q20 80 22 110 L38 110 Q40 80 60 92 Q80 80 82 110 L98 110 Q100 80 84 56 Z" ${col("back","#0A84FF")}/>
+    <!-- Core --><rect x="48" y="90" width="24" height="28" rx="6" ${col("core","#30D158")}/>
+    <!-- Hüfte --><ellipse cx="60" cy="126" rx="22" ry="12" fill="#2A2D33"/>
+    <!-- Quads --><ellipse cx="46" cy="162" rx="14" ry="30" ${col("quads","#30D158")}/>
+    <ellipse cx="74" cy="162" rx="14" ry="30" ${col("quads","#30D158")}/>
+    <!-- Hamstrings (hinter Quads, leicht versetzt) --><ellipse cx="47" cy="165" rx="11" ry="26" ${col("hamstrings","#FFD60A")}/>
+    <ellipse cx="73" cy="165" rx="11" ry="26" ${col("hamstrings","#FFD60A")}/>
+    <!-- Waden --><ellipse cx="46" cy="210" rx="9" ry="18" fill="#1C1F24" opacity="0.5"/>
+    <ellipse cx="74" cy="210" rx="9" ry="18" fill="#1C1F24" opacity="0.5"/>
+  </svg>`;
+}
+
+/* ===== v4.0 WELLE G: SHADOW WOCHENPACE ===== */
+function shadowWeekPace(g){
+  const sh=shadowData(g); if(!sh) return null;
+  const se=seasonInfo(g);
+  const curStart=se.start, prevStart=addDays(curStart,-28);
+  const weeks=4;
+  const pace=[];
+  for(let w=0;w<weeks;w++){
+    const wS=addDays(curStart,w*7), wE=addDays(wS,6);
+    const pS=addDays(prevStart,w*7), pE=addDays(pS,6);
+    const cur=g.per.filter(p=>p.date>=wS&&p.date<=wE&&p.date<=todayStr()).reduce((a,p)=>a+p.pts,0);
+    const prev=g.per.filter(p=>p.date>=pS&&p.date<=pE).reduce((a,p)=>a+p.pts,0);
+    pace.push({week:w+1,cur,prev});
+  }
+  return pace;
+}
+
+/* ===== v4.0 WELLE G: MILESTONE-COUNTDOWN ===== */
+function milestoneCountdownHtml(g){
+  const exWithTarget=Object.values(S.exercises).filter(e=>e.targetKg&&e.unit!=="seconds");
+  if(!exWithTarget.length) return "";
+  const cards=exWithTarget.map(ex=>{
+    const proj=maxLiftProjection(ex.id);
+    if(!proj) return "";
+    if(proj.achieved) return `<div class="row" style="align-items:center;padding:8px 0"><div class="grow"><b>${ex.name}</b><div class="mut" style="font-size:12px">Ziel ${ex.targetKg} kg erreicht! 🎉</div></div><span class="delta up">✓</span></div>`;
+    return `<div style="padding:8px 0;${exWithTarget.indexOf(ex)>0?'border-top:1px solid var(--bord)':''}">
+      <div class="row"><b class="grow">${ex.name}</b><span class="mut num" style="font-size:12px">${proj.cur} → ${proj.target} kg</span></div>
+      <div class="pbar" style="margin-top:6px"><div class="pfill" style="width:${Math.min(100,proj.cur/proj.target*100).toFixed(0)}%;background:var(--legs)"></div></div>
+      <div class="mut num" style="font-size:11px;margin-top:4px">~${proj.weeksNeeded} Wochen bei aktuellem Pace · ca. ${dShort(proj.targetDate)}</div>
+    </div>`;
+  }).join("");
+  return cards ? `<h2>🎯 Ziele & Pace</h2><div class="card">${cards}</div>` : "";
+}
+
+/* ===== v4.0 WELLE H: PLATEAU-VARIATIONEN ===== */
+function plateauVariations(exId){
+  const ex=S.exercises[exId]; if(!ex) return [];
+  const pool=PLATEAU_VARS[ex.muscle]||PLATEAU_VARS.default;
+  return pool;
+}
+function applyPlateauVar(exId,varKey){
+  const vars=plateauVariations(exId);
+  const v=vars.find(x=>x.k===varKey); if(!v) return;
+  if(!S.draft) return;
+  const entry=S.draft.entries.find(e=>e.exerciseId===exId);
+  if(entry){ entry.notes=(entry.notes?entry.notes+"\n":"")+v.l+": "+v.d; save(); render(); toast("Variation notiert: "+v.l); }
+}
+
+/* ===== v4.0 WELLE H: MICRO-PERIODISIERUNG ===== */
+function cycleWeek(){
+  const start=S.gami.cycleStart||todayStr();
+  const days=Math.floor((new Date(todayStr()+"T12:00:00")-new Date(start+"T12:00:00"))/86400000);
+  return (Math.floor(days/7)%4)+1; // 1–4 (4 = Deload)
+}
+
+/* ===== v4.0 WELLE H: SMART-DELOAD ===== */
+function checkSmartDeload(){
+  const metrics=[...S.bodyweight.metrics].sort((a,b)=>a.date>b.date?-1:1).slice(0,3);
+  const allLow=metrics.length>=3&&metrics.every(m=>m.recoveryScore!=null&&m.recoveryScore<60);
+  return allLow&&!S.gami.deloadActive;
+}
+
+/* ===== v4.0 WELLE H: LEISTUNGS-WETTERVORHERSAGE ===== */
+function trainingForecast(){
+  if(S.sessions.length<10) return null;
+  const today=todayStr();
+  const dayNames=["So","Mo","Di","Mi","Do","Fr","Sa"];
+  const counts={};
+  for(const s of S.sessions){
+    const d=new Date(s.date+"T12:00:00").getDay();
+    counts[d]=(counts[d]||0)+1;
+  }
+  const maxCount=Math.max(...Object.values(counts));
+  const forecast=[];
+  for(let i=1;i<=5;i++){
+    const date=addDays(today,i);
+    const dayIdx=new Date(date+"T12:00:00").getDay();
+    const score=((counts[dayIdx]||0)/maxCount);
+    const icon=score>=0.7?"☀️":score>=0.4?"🌤":"⛅";
+    const label=score>=0.7?"Guter Tag":score>=0.4?"Okay":"Eher Ruhetag";
+    forecast.push({date,dayName:dayNames[dayIdx],icon,label,score});
+  }
+  return forecast;
+}
+
+/* ===== v4.0 WELLE H: GEWOHNHEITS-KETTE ===== */
+function habitsList(){ return S.gami.habits||[]; }
+function toggleHabit(key){
+  const today=todayStr();
+  const h=habitsList().find(h=>h.key===key); if(!h) return;
+  const todayLog=h.log.find(l=>l.date===today);
+  if(todayLog) todayLog.done=!todayLog.done;
+  else h.log.push({date:today,done:true});
+  const done=!!(h.log.find(l=>l.date===today)?.done);
+  if(done){ S.gami.bonusCoins=(S.gami.bonusCoins||0)+2; }
+  save(); render();
+}
+function habitStreak(h){
+  let streak=0, d=todayStr();
+  while(true){ if(h.log.find(l=>l.date===d&&l.done)) streak++; else break; d=addDays(d,-1); }
+  return streak;
+}
+
+/* ===== v4.0 WELLE I: MURMEL-TAGEBUCH (Claude API) ===== */
+async function generateDiary(){
+  const g=computeGami(), se=seasonInfo(g);
+  const wk=isoWeek(todayStr());
+  const tw=S.sessions.filter(s=>isoWeek(s.date)===wk);
+  const prs=g.per.filter(p=>isoWeek(p.date)===wk&&p.bd.pr>0).length;
+  const summary={sessions:tw.length,prs,pts:g.per.filter(p=>isoWeek(p.date)===wk).reduce((a,p)=>a+p.pts,0),rank:g.rank.name,streak:streakInfo().streak,season:se.num};
+  const prompt=`Du bist Murmel, eine kleine sprechende Murmel-Kugel, Maskottchen und Trainings-Begleiter von Mauricio. Schreibe einen kurzen, persönlichen Wochenrückblick auf Deutsch (3–4 Sätze, warmherzig, motivierend, direkte Ansprache als "du"): ${JSON.stringify(summary)}`;
+  try{
+    toast("Murmel schreibt... ✍️");
+    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:300,messages:[{role:"user",content:prompt}]})});
+    const data=await res.json();
+    const text=data.content?.find(c=>c.type==="text")?.text||"";
+    if(!text) throw new Error("Keine Antwort");
+    S.gami.diary=S.gami.diary||[];
+    S.gami.diary.unshift({weekKey:wk,text,generatedAt:Date.now()});
+    if(S.gami.diary.length>8) S.gami.diary=S.gami.diary.slice(0,8);
+    save(); render(); toast("Murmel hat geschrieben! 📝");
+  }catch(e){ toast("Fehler beim Schreiben: "+(e.message||e)); }
+}
 function yearHeatmapSVG(){
   const today=todayStr();
   const td=new Date(today+"T12:00:00"), tdDay=td.getDay();
@@ -3047,13 +3414,20 @@ function yearHeatmapSVG(){
   const sm={}; for(const s of S.sessions) if(!sm[s.date]) sm[s.date]=s.type;
   const C=7,G=1,St=C+G, LX=26,TY=18, cols=53;
   const tc={push:"#FF453A",pull:"#0A84FF",legs:"#30D158"};
+  /* v4.0: Volumen-Map für Intensitäts-Shading */
+  const volMap={};
+  for(const s of S.sessions){
+    const d=s.date; volMap[d]=(volMap[d]||0)+sessionVolume(s);
+  }
+  const maxVol=Math.max(1,...Object.values(volMap));
   const mNames=["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
   let cells="",months="",lastM="";
   for(let w=0;w<cols;w++){
     for(let d=0;d<7;d++){
       const date=addDays(gridStart,w*7+d); if(date>today) continue;
-      const type=sm[date];
-      cells+=`<rect x="${LX+w*St}" y="${TY+d*St}" width="${C}" height="${C}" rx="1.5" fill="${type?tc[type]:"#1A1D22"}" opacity="${type?"1":".5"}"/>`;
+      const type=sm[date], vol=volMap[date]||0;
+      const op=type?(0.45+0.55*(vol/maxVol)).toFixed(2):"0.5";
+      cells+=`<rect x="${LX+w*St}" y="${TY+d*St}" width="${C}" height="${C}" rx="1.5" fill="${type?tc[type]:"#1A1D22"}" opacity="${op}"/>`;
       if(d===0){ const mo=date.slice(0,7); if(mo!==lastM){ lastM=mo; const mi=parseInt(date.slice(5,7),10)-1; months+=`<text x="${LX+w*St}" y="${TY-3}" font-size="8" fill="#4E5560" font-family="-apple-system,sans-serif">${mNames[mi]}</text>`; } }
     }
   }
@@ -3122,6 +3496,8 @@ function vSessionReport(){
     <div class="mut num" style="margin-top:6px">${fmt(g.effXp)} XP${g.next?` · noch ${fmt(g.next.min-g.effXp)} bis ${g.next.name}`:""}</div>
   </div>
   <button class="btn full" onclick="shareReport('${id}')" style="margin-top:6px">Als Bild teilen</button>
+  ${sessionReplayHtml(s)}
+  ${hl.plateaus&&hl.plateaus.length?`<h2>🔁 Plateau-Variationen</h2><div class="card">${hl.plateaus.map(pid=>{const pex=S.exercises[pid];if(!pex)return"";const vars=plateauVariations(pid);return`<div style="margin-bottom:10px"><b>${pex.name}</b>${vars.map(v=>`<button class="btn small" style="margin:4px 4px 0 0" onclick="applyPlateauVar('${pid}','${v.k}')">${v.l}</button>`).join("")}</div>`;}).join("")}</div>`:""}
   <button class="btn full accent ${T.cls}" style="margin-top:10px" onclick="go('marble')">Murmel ansehen</button>
   <button class="btn full ghost" style="margin-top:8px" onclick="go('home')">Fertig</button>`;
 }
@@ -3358,6 +3734,17 @@ function togglePlan(t,id){
   if (!S.gami.boss)            S.gami.boss = {};             /* {YYYY-MM:"defeated"} */
   if (S.gami.daily===undefined) S.gami.daily = null;        /* Tagesquest-State */
   if (!S.gami.chain)           S.gami.chain = null;         /* aktive Story-Kette */
+  /* v4.0 Welle E–I */
+  if (!S.gami.weekChallenge)   S.gami.weekChallenge = null; /* Wochen-Challenge */
+  if (S.gami.challengeStreak==null) S.gami.challengeStreak = 0;
+  if (!S.gami.habits)          S.gami.habits = DEFAULT_HABITS.map(h=>({...h,log:[]}));
+  if (!S.gami.diary)           S.gami.diary = [];
+  if (S.gami.deloadActive==null) S.gami.deloadActive = false;
+  if (!S.gami.cycleStart)      S.gami.cycleStart = (S.sessions[0]?.date)||todayStr();
+  /* Boss-Migration: string "defeated" → {main:"defeated"} */
+  if(S.gami.boss) for(const k of Object.keys(S.gami.boss)){ if(S.gami.boss[k]==="defeated") S.gami.boss[k]={main:"defeated"}; }
+  /* targetKg-Feld für Übungen */
+  for(const id of Object.keys(S.exercises)){ if(S.exercises[id].targetKg===undefined) S.exercises[id].targetKg=null; }
   /* v1.6: Muskelgruppen nachtragen (alte Daten ohne muscle) */
   const MUMAP={flachbank:"chest",schraegbank:"chest",cablefly:"chest",schulterdruecken:"shoulders",seitheben:"shoulders",
     trizeps:"triceps",latzug:"back",kabelrudern:"back",facepulls:"back",preacher:"biceps",hammercurl:"biceps",
