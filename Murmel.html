@@ -136,6 +136,20 @@ svg{max-width:100%;}
 /* Murmel / Gamification */
 .marble-stage{display:flex; justify-content:center; align-items:center; padding:18px 0 6px;}
 .marble-wrap{position:relative; transition:filter .4s;}
+@keyframes marble-polish{
+  0%  {filter:brightness(1);}
+  25% {filter:brightness(1.9) saturate(1.6) drop-shadow(0 0 14px rgba(255,255,255,.7));}
+  60% {filter:brightness(1.25) saturate(1.2);}
+  100%{filter:brightness(1);}
+}
+.marble-polishing{animation:marble-polish 1.4s ease-out forwards;}
+/* Rang-Aufstiegs-Overlay */
+.rankup-overlay{position:fixed;inset:0;z-index:9999;background:rgba(6,7,8,.92);
+  display:flex;align-items:center;justify-content:center;padding:28px;animation:fadein .3s ease;}
+.rankup-inner{text-align:center;max-width:300px;width:100%;}
+.rankup-lbl{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:18px 0 4px;}
+.rankup-name{font-size:40px;font-weight:800;letter-spacing:-.02em;margin-bottom:10px;}
+.rankup-sub{color:var(--mut);font-size:14px;margin-bottom:24px;line-height:1.5;}
 .marble-float{animation:mfloat 4s ease-in-out infinite;}
 .marble-pulse{animation:mfloat 3s ease-in-out infinite, mpulse 2.4s ease-in-out infinite;}
 .marble-beast{animation:mfloat 2.4s ease-in-out infinite, mpulse 1.6s ease-in-out infinite;}
@@ -986,6 +1000,44 @@ function beep(){
 }
 document.addEventListener("visibilitychange", ()=>{ if(!document.hidden && tEnd>0 && $("timer").classList.contains("show")) tick(); });
 
+/* v3.0: Staub-Level — 0 (frisch) → 1 (7+ Ruhetage) */
+function dustLevel(){
+  const sess = sortedSessions(); if(!sess.length) return 0;
+  const daysSince = (new Date(todayStr()) - new Date(sess[0].date)) / 86400000;
+  return Math.min(1, Math.max(0, daysSince / 7));
+}
+/* v3.0: Aufstiegs-Sound — fröhlicher Dreiklang */
+function beepRankUp(){
+  try{
+    ensureAudio(); if(!audioCtx) return;
+    [[523,.0],[659,.18],[784,.36],[1047,.58]].forEach(([freq,t])=>{
+      const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+      o.frequency.value=freq; o.type="triangle"; o.connect(g); g.connect(audioCtx.destination);
+      g.gain.setValueAtTime(.35, audioCtx.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime+t+.28);
+      o.start(audioCtx.currentTime+t); o.stop(audioCtx.currentTime+t+.3);
+    });
+  }catch(e){}
+}
+/* v3.0: Rang-Aufstiegs-Vollbild-Overlay */
+function showRankUpOverlay(newRank){
+  try{ document.getElementById("rankup-overlay")?.remove(); }catch(e){}
+  const el=document.createElement("div");
+  el.id="rankup-overlay"; el.className="rankup-overlay";
+  el.innerHTML=`<div class="rankup-inner">
+    ${marbleSVG(newRank,120,"",null,"")}
+    <div class="rankup-lbl">Rang-Aufstieg 🎉</div>
+    <div class="rankup-name" style="color:${newRank.core}">${newRank.name}</div>
+    <div class="rankup-sub">Du hast ${newRank.name} erreicht${(S.gami.prestige||0)>0?" · Prestige ★"+S.gami.prestige:""}.<br>Weiter so, Murmel!</div>
+    <button class="btn full" style="max-width:220px" onclick="document.getElementById('rankup-overlay')?.remove()">Weiter</button>
+  </div>`;
+  el.addEventListener("click", e=>{ if(e.target===el) el.remove(); });
+  document.body.appendChild(el);
+  try{ spawnConfetti(); }catch(e){}
+  try{ if(S.settings.sound!==false) beepRankUp(); }catch(e){}
+  try{ if(navigator.vibrate&&S.settings.vibration) navigator.vibrate([100,60,100,60,300]); }catch(e){}
+}
+
 /* ================= v1.4 HELFER ================= */
 function lastNoteFor(exId){
   const last=lastEntryFor(exId);
@@ -1057,6 +1109,8 @@ function vHome(){
   const bwLog = [...S.bodyweight.log].sort((a,b)=>a.date<b.date?1:-1);
   const bw = bwLog[0], prevBw = bwLog[1];
   const due = dueType();
+  const g = computeGami();
+  const _dq = dailyQuest(), _dqProg = dailyQuestProg(_dq, g);
 
   /* Greeting */
   const now = new Date();
@@ -1120,6 +1174,13 @@ function vHome(){
       <div class="row"><div class="grow"><b>Laufende ${TYPES[S.draft.type].label}-Session</b><div class="mut">${dLong(S.draft.date)}</div></div>
       <button class="btn accent" onclick="go('session')">Fortsetzen</button></div></div>` : ""}
   ${typeCards}
+  <h2>Tages-Quest</h2>
+  <div class="quest ${_dq.claimed?'done':''}">
+    <div class="row"><div class="grow"><b>${_dq.name}</b>${_dq.claimed?' <span class="delta up">✅ erledigt</span>':""}
+      <div class="mut" style="margin-top:2px">${_dq.desc}</div></div></div>
+    <div class="pbar" style="margin-top:10px"><div class="pfill" style="width:${Math.min(100,_dqProg/_dq.target*100).toFixed(0)}%;background:${_dq.claimed?'var(--legs)':'var(--pull)'}"></div></div>
+    <div class="mut num" style="margin-top:6px">${_dqProg}/${_dq.target}${_dq.claimed?' · +5 🪙 erhalten':''}</div>
+  </div>
   <h2>Körpergewicht</h2>
   <div class="card">
     <div class="row"><div class="grow">
@@ -1394,6 +1455,7 @@ function doFinish(mode){
   const newId = "s"+Date.now();
   S.sessions.push({ id:newId, type:d.type, date:d.date, entries, durationMin:durMin });
   S.draft=null; finishAsk=false; save(); timerStop(false); releaseWake(); stopSessTimer();
+  checkAndClaimDailyQuest();
   const hl=sessionHighlights(newId);
   /* v1.8: Kontext-Easter-Eggs prüfen und einlösen */
   const newSession = S.sessions.find(s=>s.id===newId);
@@ -1412,6 +1474,26 @@ function doFinish(mode){
   }
   go("sessionReport", newId);
   if (hl.prs.length){ if(navigator.vibrate&&S.settings.vibration) navigator.vibrate([120,60,120]); setTimeout(spawnConfetti, 250); }
+  /* v3.0: Politur-Animation — Murmel glänzt nach jeder Session kurz auf */
+  setTimeout(()=>{
+    try{
+      const wraps = document.querySelectorAll(".marble-wrap");
+      wraps.forEach(w=>{ w.classList.remove("marble-polishing"); void w.offsetWidth; w.classList.add("marble-polishing"); });
+      setTimeout(()=>{ document.querySelectorAll(".marble-polishing").forEach(w=>w.classList.remove("marble-polishing")); }, 1500);
+    }catch(e){}
+  }, 200);
+  /* v3.0: Rang-Aufstiegs-Zeremonie */
+  setTimeout(()=>{
+    try{
+      const gAfter = computeGami();
+      const prevRank = S.gami.lastRankSeen || "holz";
+      const curKey = gAfter.rank.key;
+      if(curKey !== prevRank){
+        S.gami.lastRankSeen = curKey; save();
+        setTimeout(()=>showRankUpOverlay(gAfter.rank), 1800);
+      }
+    }catch(e){}
+  }, 100);
 }
 
 /* ================= v1.9 HELFER ================= */
@@ -1759,7 +1841,9 @@ function vReport(){
     <button class="${repTab==="month"?"on":""}" onclick="repTab='month';render()">Monat</button>
     <button class="${repTab==="week"?"on":""}" onclick="repTab='week';render()">Woche</button></div>`;
   return `<h1>Report</h1><p class="sub">Trainings-Übersicht & Auswertung</p>${seg}
-    ${repTab==="month" ? monthReport() : weekReport()}`;
+    ${repTab==="month" ? monthReport() : weekReport()}
+  <h2>📅 Jahresübersicht</h2>
+  <div class="card" style="padding:14px 16px">${yearHeatmapSVG()}</div>`;
 }
 function repNav(d){
   repM += d;
@@ -1911,18 +1995,18 @@ function weekReport(){
 /* ---------- MURMEL / GAMIFICATION ---------- */
 const RANKS = [
   { key:"holz",     name:"Holz",     min:0,     core:"#7A5230", edge:"#4A2F18", hi:"rgba(255,230,190,.35)", glow:"rgba(160,110,60,.3)",  kind:"matte",  grain:true },
-  { key:"stein",    name:"Stein",    min:150,   core:"#8C9094", edge:"#565A5F", hi:"rgba(255,255,255,.3)",  glow:"rgba(140,144,148,.3)", kind:"matte",  speck:true },
-  { key:"bronze",   name:"Bronze",   min:350,   core:"#C77B3C", edge:"#7A4517", hi:"rgba(255,225,180,.7)",  glow:"rgba(199,123,60,.45)", kind:"metal" },
-  { key:"eisen",    name:"Eisen",    min:600,   core:"#8A929B", edge:"#474D54", hi:"rgba(255,255,255,.75)", glow:"rgba(138,146,155,.4)", kind:"metal" },
-  { key:"silber",   name:"Silber",   min:1000,  core:"#D6DBE0", edge:"#878E96", hi:"rgba(255,255,255,.9)",  glow:"rgba(214,219,224,.5)", kind:"metal" },
-  { key:"gold",     name:"Gold",     min:1600,  core:"#F2C849", edge:"#A9791A", hi:"rgba(255,250,210,.95)", glow:"rgba(242,200,73,.55)", kind:"metal" },
-  { key:"platin",   name:"Platin",   min:2500,  core:"#E8EBEF", edge:"#9AA6B0", hi:"rgba(255,255,255,1)",   glow:"rgba(232,235,239,.6)", kind:"metal" },
-  { key:"smaragd",  name:"Smaragd",  min:3800,  core:"#2FBF71", edge:"#0E6B3C", hi:"rgba(220,255,235,.85)", glow:"rgba(47,191,113,.6)",  kind:"gem" },
-  { key:"saphir",   name:"Saphir",   min:5500,  core:"#2E7DF2", edge:"#123E86", hi:"rgba(220,235,255,.85)", glow:"rgba(46,125,242,.6)",  kind:"gem" },
-  { key:"rubin",    name:"Rubin",    min:7500,  core:"#E23B5B", edge:"#841326", hi:"rgba(255,225,232,.85)", glow:"rgba(226,59,91,.6)",   kind:"gem" },
-  { key:"diamant",  name:"Diamant",  min:10000, core:"#CFE9F5", edge:"#7FA8BD", hi:"rgba(255,255,255,1)",   glow:"rgba(207,233,245,.7)", kind:"diamond" },
-  { key:"obsidian", name:"Obsidian", min:13500, core:"#2A2D33", edge:"#0A0B0D", hi:"rgba(180,190,210,.9)",  glow:"rgba(120,130,160,.5)", kind:"metal" },
-  { key:"legende",  name:"Legende",  min:18000, core:"#9b5de5", edge:"#3a0ca3", hi:"rgba(255,255,255,.95)", glow:"rgba(155,93,229,.7)",  kind:"iridescent" }
+  { key:"stein",    name:"Stein",    min:100,   core:"#8C9094", edge:"#565A5F", hi:"rgba(255,255,255,.3)",  glow:"rgba(140,144,148,.3)", kind:"matte",  speck:true },
+  { key:"bronze",   name:"Bronze",   min:250,   core:"#C77B3C", edge:"#7A4517", hi:"rgba(255,225,180,.7)",  glow:"rgba(199,123,60,.45)", kind:"metal" },
+  { key:"eisen",    name:"Eisen",    min:450,   core:"#8A929B", edge:"#474D54", hi:"rgba(255,255,255,.75)", glow:"rgba(138,146,155,.4)", kind:"metal" },
+  { key:"silber",   name:"Silber",   min:700,   core:"#D6DBE0", edge:"#878E96", hi:"rgba(255,255,255,.9)",  glow:"rgba(214,219,224,.5)", kind:"metal" },
+  { key:"gold",     name:"Gold",     min:1050,  core:"#F2C849", edge:"#A9791A", hi:"rgba(255,250,210,.95)", glow:"rgba(242,200,73,.55)", kind:"metal" },
+  { key:"platin",   name:"Platin",   min:1500,  core:"#E8EBEF", edge:"#9AA6B0", hi:"rgba(255,255,255,1)",   glow:"rgba(232,235,239,.6)", kind:"metal" },
+  { key:"smaragd",  name:"Smaragd",  min:2100,  core:"#2FBF71", edge:"#0E6B3C", hi:"rgba(220,255,235,.85)", glow:"rgba(47,191,113,.6)",  kind:"gem" },
+  { key:"saphir",   name:"Saphir",   min:2900,  core:"#2E7DF2", edge:"#123E86", hi:"rgba(220,235,255,.85)", glow:"rgba(46,125,242,.6)",  kind:"gem" },
+  { key:"rubin",    name:"Rubin",    min:3900,  core:"#E23B5B", edge:"#841326", hi:"rgba(255,225,232,.85)", glow:"rgba(226,59,91,.6)",   kind:"gem" },
+  { key:"diamant",  name:"Diamant",  min:5100,  core:"#CFE9F5", edge:"#7FA8BD", hi:"rgba(255,255,255,1)",   glow:"rgba(207,233,245,.7)", kind:"diamond" },
+  { key:"obsidian", name:"Obsidian", min:6500,  core:"#2A2D33", edge:"#0A0B0D", hi:"rgba(180,190,210,.9)",  glow:"rgba(120,130,160,.5)", kind:"metal" },
+  { key:"legende",  name:"Legende",  min:8000,  core:"#9b5de5", edge:"#3a0ca3", hi:"rgba(255,255,255,.95)", glow:"rgba(155,93,229,.7)",  kind:"iridescent" }
 ];
 const STATES = [
   { key:"faul",      name:"Faul",      min:0, anim:"marble-lazy",   desc:"Die Murmel döst vor sich hin." },
@@ -1946,6 +2030,7 @@ function computeGami(){
     .sort((a,b)=> a.date<b.date?-1 : a.date>b.date?1 : (a.id<b.id?-1:1));
   const prevE1={}, bestPR={}, weekCnt={};
   let total=0, totals={consistency:0, progression:0, pr:0, weekly:0};
+  let coinsEarned=0;
   const per=[];
   for (const s of sorted){
     const bd={consistency:10, progression:0, pr:0, weekly:0};
@@ -1963,21 +2048,74 @@ function computeGami(){
     if (weekCnt[wk]===S.settings.weeklyGoal) bd.weekly=50;
     const pts = bd.consistency+bd.progression+bd.pr+bd.weekly;
     total += pts;
+    /* Münzen (v3.0): Session +5, Progression +2/Event, PR +15/Event, Wochenziel +20 */
+    coinsEarned += 5 + (bd.progression/5)*2 + (bd.pr/25)*15 + (bd.weekly?20:0);
     for (const k in totals) totals[k]+=bd[k];
     per.push({ id:s.id, date:s.date, type:s.type, pts, bd });
   }
-  /* Rang */
+  /* Rang (v3.0): folgt der Gesamt-XP inkl. Boni, abzüglich Prestige-Stufen */
+  const bonus = sessionXpBonus();
+  const rankXp = total + bonus;
+  const STEP = RANKS[RANKS.length-1].min;
+  const prestige = (S.gami && S.gami.prestige) || 0;
+  const effXp = Math.max(0, rankXp - prestige*STEP);
   let rank=RANKS[0], next=null;
-  for (let i=0;i<RANKS.length;i++){ if (total>=RANKS[i].min){ rank=RANKS[i]; next=RANKS[i+1]||null; } }
-  const prog = next ? (total-rank.min)/(next.min-rank.min) : 1;
+  for (let i=0;i<RANKS.length;i++){ if (effXp>=RANKS[i].min){ rank=RANKS[i]; next=RANKS[i+1]||null; } }
+  const prog = next ? (effXp-rank.min)/(next.min-rank.min) : 1;
   /* Zustand: Sessions der letzten 14 Tage */
   const cut = addDays(todayStr(), -13);
   const recent = S.sessions.filter(s=>s.date>=cut && s.date<=todayStr()).length;
   let state=STATES[0];
   for (const st of STATES) if (recent>=st.min) state=st;
-  return { total, totals, per:per.reverse(), rank, next, prog, state, recent };
+  coinsEarned += (S.gami && S.gami.bonusCoins) || 0;
+  return { total, totals, per:per.reverse(), rank, next, prog, state, recent, rankXp, effXp, prestige, step:STEP, coinsEarned };
 }
 const SEASON_EPOCH = "2026-06-01"; /* Montag */
+
+/* v3.0: Welle C — Challenge-Pools */
+const DAILY_POOL = [
+  {key:"train",    name:"Heute trainieren",     desc:"Eine Session heute abschließen.",                   target:1},
+  {key:"improve1", name:"Eine Übung steigern",  desc:"Bei einer Übung heute mehr als zuletzt schaffen.",  target:1},
+  {key:"setcount", name:"9 Sätze loggen",       desc:"Mind. 9 Sätze in der heutigen Session erfassen.",  target:9},
+  {key:"rirlog",   name:"RIR notieren",         desc:"Bei mind. 3 Sätzen heute den RIR-Wert eintragen.", target:3},
+  {key:"nobreak",  name:"Session durchziehen",  desc:"Training starten und vollständig beenden.",         target:1},
+];
+const STORY_CHAINS = [
+  { id:"chest_blitz",  name:"Brust-Offensive",   icon:"🔴",
+    steps:[
+      {name:"2× Push-Tag",          desc:"Zwei Push-Sessions nach Kettenstart abschließen.", type:"sess_type",  stype:"push",      target:2},
+      {name:"Flachbank steigern",   desc:"Beim Flachbank-Drücken eine neue Bestleistung erzielen.", type:"ex_prog", exId:"flachbank", target:1},
+      {name:"Brust-PR",             desc:"Einen neuen PR an einer Brust-Übung aufstellen.",  type:"pr_muscle", muscle:"chest",    target:1},
+    ],
+    reward:{coins:40, trophyName:"Brust-Offensive abgeschlossen"},
+  },
+  { id:"pull_machine",  name:"Zug-Maschine",      icon:"🔵",
+    steps:[
+      {name:"2× Pull-Tag",          desc:"Zwei Pull-Sessions nach Kettenstart abschließen.", type:"sess_type",  stype:"pull",      target:2},
+      {name:"Lat-Pulldown steigern",desc:"Beim Latziehen eine neue Bestleistung erzielen.",  type:"ex_prog",    exId:"latzug",    target:1},
+      {name:"Rücken-PR",            desc:"Einen neuen PR an einer Rücken-Übung aufstellen.", type:"pr_muscle", muscle:"back",     target:1},
+    ],
+    reward:{coins:40, trophyName:"Zug-Maschine abgeschlossen"},
+  },
+  { id:"legs_of_steel", name:"Stählerne Beine",   icon:"🟢",
+    steps:[
+      {name:"2× Leg-Tag",           desc:"Zwei Bein-Sessions nach Kettenstart abschließen.",  type:"sess_type", stype:"legs",     target:2},
+      {name:"Beinpresse steigern",  desc:"Bei der Beinpresse eine neue Bestleistung erzielen.",type:"ex_prog",  exId:"beinpresse",target:1},
+      {name:"Bein-PR",              desc:"Einen neuen PR an einer Bein-Übung aufstellen.",    type:"pr_muscle", muscle:"quads",   target:1},
+    ],
+    reward:{coins:40, trophyName:"Stählerne Beine abgeschlossen"},
+  },
+];
+const BOSS_POOL = [
+  {key:"tonnage",  name:"Das Tonnage-Monster", icon:"⚖️", desc:"10.000 kg Gesamt-Tonnage diesen Monat heben.",  target:10000, unit:"kg",
+    prog:(g,ym)=>Math.round(S.sessions.filter(s=>s.date.startsWith(ym)).reduce((n,s)=>n+sessionVolume(s),0))},
+  {key:"sessions", name:"Der 12er",            icon:"📅", desc:"12 Trainingseinheiten diesen Monat abschließen.", target:12,   unit:"Sessions",
+    prog:(g,ym)=>S.sessions.filter(s=>s.date.startsWith(ym)).length},
+  {key:"prs",      name:"PR-Jäger",            icon:"🏆", desc:"5 neue Bestleistungen diesen Monat aufstellen.", target:5,    unit:"PRs",
+    prog:(g,ym)=>g.per.filter(p=>p.date.startsWith(ym)).reduce((n,p)=>n+Math.round(p.bd.pr/25),0)},
+  {key:"streak",   name:"Der Unerbittliche",   icon:"🔥", desc:"3 Wochen Streak diesen Monat aufrechterhalten.", target:3,   unit:"Wochen",
+    prog:(g,ym)=>{ const st=streakInfo(); return st.streak; }},
+];
 function weeksMap(){ const m={}; for(const s of S.sessions){ if(s.date>todayStr()) continue; const w=isoWeek(s.date); m[w]=(m[w]||0)+1; } return m; }
 function consistencyScore(){
   const goal=S.settings.weeklyGoal; const m=weeksMap();
@@ -2059,14 +2197,87 @@ function weeklyQuest(g=computeGami()){
   return {...q, prog:Math.min(prog,q.target), raw:prog, done:prog>=q.target};
 }
 function murmelQuote(g){
-  const last=g.per[0], st=streakInfo();
-  if(g.state.key==="faul") return "Lange nichts gehört … Zeit, mich wieder zu rollen?";
-  if(last && last.bd.pr) return "Neuer Rekord! Ich glänze schon ein bisschen heller. 🏆";
-  if(st.curDone) return "Wochenziel sitzt. Stark, Murmel!";
-  if(g.state.key==="beast") return "Unaufhaltsam gerade. Weiter so!";
-  if(g.state.key==="sportlich") return "Voll im Schwung – das Tempo mag ich.";
-  if(st.streak>=3) return st.streak+" Wochen am Stück. Respekt.";
-  return "Bereit, wenn du es bist.";
+  /* tägliche Rotation innerhalb eines Pools */
+  const rot = pools => pools[Math.floor(Date.now()/86400000) % pools.length];
+  const st = streakInfo();
+  const dust = dustLevel();
+  const lastSess = g.per[0];
+  const trainedToday = lastSess && lastSess.date === todayStr();
+  const h = new Date().getHours();
+
+  /* 1. Sehr staubig: 5+ Ruhetage */
+  if(dust >= 0.71) return rot([
+    "Ich sammle schon Staub … Alles in Ordnung bei dir?",
+    "Langsam werd ich matschig hier drin. Wann rollst du mich wieder?",
+    "Staub marsch! Wo warst du die ganze Zeit?",
+  ]);
+  /* 2. Leicht staubig: 2–4 Ruhetage */
+  if(dust >= 0.29) return rot([
+    "Ein bisschen Staub schadet nicht – aber nicht zu lange.",
+    "Ruhetage sind wichtig. Ich warte gerne.",
+    "Ich bin bereit, wenn du es bist.",
+  ]);
+  /* 3. Frisch poliert + PR heute */
+  if(trainedToday && lastSess.bd.pr) return rot([
+    "Neuer Rekord! Ich glänze heute besonders. 🏆",
+    "PR geknackt – das spür ich bis in den Kern!",
+    "Historisch. Absolut historisch.",
+  ]);
+  /* 4. Frisch poliert, kein PR */
+  if(trainedToday) return rot([
+    "Frisch poliert und bereit. Stark heute!",
+    "Direkt nach dem Training am schönsten. 💪",
+    "Session gesessen. Ich bin stolz auf dich.",
+  ]);
+  /* 5. Letzter PR in der vorletzten Session */
+  if(lastSess && lastSess.bd.pr) return rot([
+    "Letzter PR steckt noch im Muskel. Darauf aufbauen.",
+    "Rekord-Energie noch drin. Nutz sie.",
+    "Der Rekord steht – jetzt verteidigen.",
+  ]);
+  /* 6. Langer Streak */
+  if(st.streak >= 5) return rot([
+    `${st.streak} Wochen am Stück. Beeindruckend.`,
+    "Wer so konsistent ist, wird unweigerlich stärker.",
+    "Maschine-Modus: dauerhaft aktiviert.",
+  ]);
+  if(st.streak >= 3) return rot([
+    `${st.streak} Wochen Streak – weiter so!`,
+    "Konstanz ist unterschätzt. Du hast sie.",
+    "Streak am Leben. Nicht jetzt aufhören.",
+  ]);
+  /* 7. Zustand Beast/Sportlich */
+  if(g.state.key==="beast") return rot([
+    "Unaufhaltsam gerade. Weiter so!",
+    "Beast-Modus: eingeschaltet.",
+    "Im Flow. Stör das nicht.",
+  ]);
+  if(g.state.key==="sportlich") return rot([
+    "Voll im Schwung – das Tempo mag ich.",
+    "Gutes Momentum. Nicht abreißen lassen.",
+    "Regelmäßig und stark – so macht es Spaß.",
+  ]);
+  /* 8. Wochenziel diese Woche erledigt */
+  if(st.curDone) return rot([
+    "Wochenziel sitzt. Stark, Murmel!",
+    "Fertig für diese Woche. Erhol dich gut.",
+    "Check ✓. Diese Woche gehört dir.",
+  ]);
+  /* 9. Prestige */
+  if((g.prestige||0)>0) return rot([
+    `Prestige ★${g.prestige} – du weißt, was du tust.`,
+    "Wiedergeboren und stärker als je zuvor.",
+    "Legende war erst der Anfang.",
+  ]);
+  /* 10. Tageszeit */
+  if(h<6)  return "Frühaufsteher! Ich mag das.";
+  if(h>=22) return "Spät, aber dabei – zählt doppelt.";
+  /* Default */
+  return rot([
+    "Bereit, wenn du es bist.",
+    "Dein nächstes Training wartet.",
+    "Jeder Tag ist eine neue Chance.",
+  ]);
 }
 function weekRecap(g){
   const dow=new Date(todayStr()+"T12:00:00").getDay();
@@ -2080,11 +2291,15 @@ function weekRecap(g){
 }
 function skinsUnlocked(g=computeGami()){
   const ach=achievementsList(g); const has=k=>{const a=ach.find(x=>x.key===k);return a&&a.un;};
+  const owned=(S.gami&&S.gami.owned)||{};
+  const se=seasonInfo(g); const seKey="season_"+se.num;
+  const seAcq=se.num%3===1?"Boss-Belohnung":se.num%3===2?"400 🪙 im Shop":"Ketten-Abschluss";
   return {
     none:{name:"Klassisch", un:true, hint:""},
     headband:{name:"Stirnband", un:g.total>=1000, hint:"ab Silber"},
     crown:{name:"Krone", un:g.total>=10000, hint:"ab Diamant"},
     glow:{name:"Glow", un:has("streak3"), hint:"3-Wochen-Streak"},
+    [seKey]:{name:"Saison "+se.num+" ★", un:!!owned[seKey], hint:"Saison-exklusiv · "+seAcq},
   };
 }
 
@@ -2120,7 +2335,7 @@ function sessionXpBonus(){
 }
 
 /* Haupt-XP = bestehendes g.total + Bonus */
-function totalXp(g){ return g.total + sessionXpBonus(); }
+function totalXp(g){ return g.rankXp!=null ? g.rankXp : g.total + sessionXpBonus(); }
 
 /* ---- FÄHIGKEITEN-BAUM ---- */
 const ABILITY_TREES = [
@@ -2394,8 +2609,21 @@ function marbleSVG(rank, size, animClass, skin, accessories=""){
   if (skin==="headband") skinEl=`<rect x="${c-s*.41}" y="${c-s*.17}" width="${s*.82}" height="${s*.13}" rx="${s*.02}" fill="#FF453A" opacity=".9" transform="rotate(-8 ${c} ${c})"/><circle cx="${c+s*.34}" cy="${c-s*.15}" r="${s*.04}" fill="#FF453A"/>`;
   if (skin==="crown") skinEl=`<path d="M${c-s*.2} ${c-s*.36} L${c-s*.2} ${c-s*.47} L${c-s*.07} ${c-s*.4} L${c} ${c-s*.49} L${c+s*.07} ${c-s*.4} L${c+s*.2} ${c-s*.47} L${c+s*.2} ${c-s*.36} Z" fill="#E8C547" stroke="#A9791A" stroke-width="1.2"/>`;
   if (skin==="glow") skinEl=`<circle cx="${c}" cy="${c}" r="${s*.47}" fill="none" stroke="${rank.glow}" stroke-width="${s*.02}" opacity=".7"/>`;
+  if (skin && skin.startsWith("season_")){ const _sn=parseInt(skin.slice(7))||1; const _sc=["#FF6B9D","#00CED1","#FFB347","#98FB98","#C39BD3","#76D7C4"][(_sn-1)%6]; skinEl=`<circle cx="${c}" cy="${c}" r="${s*.43}" fill="none" stroke="${_sc}" stroke-width="${s*.055}" opacity=".9"/><text x="${c}" y="${c+s*.4}" text-anchor="middle" font-size="${s*.12}" fill="${_sc}" font-weight="700" font-family="-apple-system,sans-serif" opacity=".85">S${_sn}</text>`; }
   /* v1.8: Ability/Easter-Egg-Accessoires als Overlay (normalisiert auf 100×100 viewBox) */
   const accLayer = accessories ? `<g transform="scale(${s/100})">${accessories}</g>` : "";
+  /* v3.0: Staub-Schicht — halbtransparente Matt-Ebene, wächst mit Ruhetagen */
+  const _dust = (typeof dustLevel==="function") ? dustLevel() : 0;
+  const dustEl = _dust>0.05
+    ? `<circle cx="${c}" cy="${c}" r="${s*.4}" fill="#6B7280" opacity="${(_dust*0.55).toFixed(3)}"/>`
+    + (_dust>0.45 ? `<circle cx="${c-s*.06}" cy="${c+s*.08}" r="${s*.04}" fill="#9CA3AF" opacity="${(_dust*.4).toFixed(3)}"/>
+       <circle cx="${c+s*.11}" cy="${c-.04*s}" r="${s*.025}" fill="#9CA3AF" opacity="${(_dust*.35).toFixed(3)}"/>` : "")
+    : "";
+  /* v3.0: Prestige-Sterne (nur auf größeren Murmeln, um kleine Leiter-Icons sauber zu halten) */
+  const _pst = (S.gami && S.gami.prestige) || 0;
+  const prestigeEl = (_pst>0 && s>=60)
+    ? `<text x="${c}" y="${s*.22}" text-anchor="middle" font-size="${s*.15}" font-weight="700" fill="#FFD60A" stroke="#3a0ca3" stroke-width="${s*.006}" style="paint-order:stroke">${"★".repeat(Math.min(_pst,3))}${_pst>3?"+":""}</text>`
+    : "";
   return `<div class="marble-wrap ${animClass}" style="--glow:${rank.glow}">
     <svg width="${s}" height="${s}" viewBox="0 0 ${s} ${s}" aria-label="Murmel ${rank.name}">
       <defs>${grad}
@@ -2406,7 +2634,7 @@ function marbleSVG(rank, size, animClass, skin, accessories=""){
       ${extra}
       <circle cx="${c}" cy="${c}" r="${s*.4}" fill="url(#sh${id})"/>
       <ellipse cx="${c-s*.12}" cy="${c-s*.14}" rx="${s*.12}" ry="${s*.08}" fill="${rank.hi}" opacity=".9" transform="rotate(-25 ${c-s*.12} ${c-s*.14})"/>
-      ${sparkle}${skinEl}${accLayer}
+      ${sparkle}${skinEl}${accLayer}${dustEl}${prestigeEl}
     </svg></div>`;
 }
 function vMarble(){
@@ -2423,7 +2651,9 @@ function vMarble(){
   const abilities = computeAbilities(g);
   const stats = abilityStats(g);
   const acc = murmelAccessories(g);
-  const pctTxt = g.next ? `Noch ${fmt(g.next.min-g.total)} P bis ${g.next.name}` : "Höchster Rang erreicht";
+  const owned = (S.gami && S.gami.owned) || {};
+  const coinBal = Math.max(0, g.coinsEarned - ((S.gami && S.gami.spent) || 0));
+  const pctTxt = g.next ? `Noch ${fmt(g.next.min-g.effXp)} XP bis ${g.next.name}` : (g.rank.key==="legende"?"Legende erreicht — Wiedergeburt möglich":"Höchster Rang erreicht");
   const flames = "🔥".repeat(Math.min(st.streak,8)) || "·";
   const ikone = abilities.ikone;
 
@@ -2437,16 +2667,17 @@ function vMarble(){
   </div>` : "";
 
   const ladder = RANKS.map(rk=>{
-    const achieved = g.total>=rk.min, isCur = rk.key===r.key;
+    const achieved = g.effXp>=rk.min, isCur = rk.key===r.key;
     return `<div class="ladder-item ${achieved?"":"locked"} ${isCur?"current":""}">
       <div style="width:34px; height:34px; flex:none">${marbleSVG(rk, 34, "")}</div>
       <div class="grow"><b>${rk.name}</b> ${isCur?'<span class="badge">aktuell</span>':""}
-        <div class="mut num">ab ${fmt(rk.min)} P</div></div>
+        <div class="mut num">ab ${fmt(rk.min)} XP</div></div>
       ${achieved?'<span class="delta up">✓</span>':'<span class="mut">🔒</span>'}</div>`;
   }).join("");
   const skinBtns = Object.entries(skins).map(([k,v])=>{
+    const usable = v.un || owned[k];
     const sel = (k==="none" && !skin) || skin===k;
-    return `<button class="skinbtn ${sel?"on":""} ${v.un?"":"locked"}" onclick="${v.un?`setSkin('${k}')`:`toast('Freischalten: ${v.hint}')`}">${v.name}${v.un?"":" 🔒"}</button>`;
+    return `<button class="skinbtn ${sel?"on":""} ${usable?"":"locked"}" onclick="${usable?`setSkin('${k}')`:`toast('Freischalten: ${v.hint||"im Shop kaufbar"}')`}">${v.name}${usable?(owned[k]&&!v.un?" 🛒":""):" 🔒"}</button>`;
   }).join("");
   const achHtml = ach.map(a=>`<div class="ach ${a.un?"":"locked"}">
     <span class="ico">${a.un?a.ico:"🔒"}</span><div><b>${a.name}</b><span>${a.desc}</span></div></div>`).join("");
@@ -2494,6 +2725,93 @@ function vMarble(){
     </div>`;
   }).join("");
 
+  /* v3.0: Shop (verkauft Skins per Münzen als alternativen Freischaltweg) */
+  const shopHtml = Object.entries(SHOP_SKINS).map(([k,it])=>{
+    const isOwned = owned[k];
+    const unlockedFree = skins[k] && skins[k].un;
+    const canBuy = !isOwned && !unlockedFree && coinBal>=it.price;
+    const status = unlockedFree ? '<span class="delta up">verdient ✓</span>'
+      : isOwned ? '<span class="delta up">gekauft ✓</span>'
+      : `<button class="btn small ${canBuy?"accent":""}" ${canBuy?`onclick="buySkin('${k}')"`:`onclick="toast('Zu wenig Münzen: ${coinBal}/${it.price} 🪙')"`}>${it.price} 🪙</button>`;
+    return `<div class="row" style="align-items:center;margin-top:8px"><div class="grow"><b>${it.name}</b>
+      <div class="mut" style="font-size:12px">${it.desc||"Murmel-Kosmetik"}</div></div>${status}</div>`;
+  }).join("");
+  const coinCard = `<div class="card" style="margin-top:12px">
+    <div class="row"><div class="grow"><div class="lbl">Münzen</div><b class="num" style="font-size:22px;color:var(--gold)">${fmt(coinBal)} 🪙</b></div>
+      <div style="text-align:right"><div class="mut" style="font-size:11px">verdient gesamt</div><b class="num">${fmt(g.coinsEarned)}</b></div></div>
+    <div class="lbl" style="margin-top:14px">Shop</div>${shopHtml}
+    <p class="mut small" style="margin-top:10px">Verdienst: Session +5 · Steigerung +2 · PR +15 · Wochenziel +20 🪙</p>
+  </div>`;
+  const prestigeCard = (g.rank.key==="legende")
+    ? `<div class="card" style="margin-top:12px;border-color:var(--gold);text-align:center">
+        <div style="font-size:13px;font-weight:700;color:var(--gold)">★ Wiedergeburt verfügbar</div>
+        <p class="mut" style="font-size:12px;margin:6px 2px 0">Rang startet neu bei Holz, du erhältst einen Prestige-Stern. Deine Gesamt-XP &amp; Historie bleiben erhalten.</p>
+        <button class="btn full accent" style="margin-top:10px" onclick="doPrestige()">Wiedergeburt ★${(g.prestige||0)+1}</button>
+      </div>`
+    : "";
+
+  /* v3.0: Welle C — Kette, Boss, Schatten */
+  const _cd = (()=>{ try{ return activeChainData(g); }catch(e){ return null; } })();
+  const _boss = (()=>{ try{ return monthBoss(g); }catch(e){ return null; } })();
+  const _sh = (()=>{ try{ return shadowData(g); }catch(e){ return null; } })();
+  const chainHtml = _cd ? `<h2>${_cd.def.icon} ${_cd.def.name}</h2>
+  <div class="card">
+    ${_cd.stepsData.map((st,i)=>{
+      const pct=Math.min(100,(st.prog/st.target*100)).toFixed(0);
+      return `<div class="row" style="align-items:flex-start;padding:8px 0;${i>0?'border-top:1px solid var(--bord)':''}">
+        <div style="font-size:18px;min-width:26px">${st.claimed?'✅':st.isCur?'▶':'⏸'}</div>
+        <div class="grow"><b style="font-size:13px">${st.name}</b>
+          <div class="mut" style="font-size:12px;margin-top:2px">${st.desc}</div>
+          ${st.isCur&&!st.claimed?`<div class="pbar" style="margin-top:6px"><div class="pfill" style="width:${pct}%;background:var(--pull)"></div></div>
+          <div class="mut num" style="font-size:11px;margin-top:3px">${st.prog}/${st.target}</div>`:''}
+        </div>
+        ${st.done&&!st.claimed&&st.isCur?`<button class="btn small accent" onclick="claimChainStep()">Einlösen</button>`:''}
+      </div>`;
+    }).join('')}
+    <p class="mut small" style="margin-top:10px">Abschluss: +${_cd.def.reward.coins} 🪙 + Trophäe</p>
+  </div>` : "";
+  const bossHtml = _boss ? `<h2>${_boss.icon} Monats-Boss</h2>
+  <div class="card ${_boss.defeated?'t-legs':''}">
+    <div class="row"><div class="grow"><b>${_boss.name}</b>${_boss.defeated?' <span class="delta up">besiegt ✅</span>':""}
+      <div class="mut" style="margin-top:2px;font-size:12px">${_boss.desc}</div></div></div>
+    <div class="pbar" style="margin-top:10px"><div class="pfill" style="width:${(_boss.pct*100).toFixed(0)}%;background:${_boss.defeated?'var(--legs)':'var(--push)'}"></div></div>
+    <div class="mut num" style="margin-top:6px">${fmt(_boss.prog)}/${fmt(_boss.target)} ${_boss.unit}</div>
+    ${!_boss.defeated&&_boss.pct>=1?`<button class="btn full accent" style="margin-top:10px" onclick="defeatBoss()">Boss besiegen! 🏆</button>`:''}
+    ${_boss.defeated?'':'<p class="mut small" style="margin-top:10px">Belohnung: +100 🪙 + Trophäe</p>'}
+  </div>` : "";
+  const shadowHtml = _sh ? `<h2>👤 Schatten</h2>
+  <div class="card">
+    <div class="row">
+      <div class="grow"><div class="lbl">Saison ${se.num}</div><b class="num" style="font-size:22px;color:var(--legs)">${fmt(_sh.curPts)} P</b></div>
+      <div style="text-align:right"><div class="lbl">Saison ${_sh.prevNum} (Tag ${_sh.dayOff})</div><b class="num" style="font-size:22px;color:var(--mut)">${fmt(_sh.prevPts)} P</b></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <span class="delta ${_sh.ahead>=0?'up':''}">
+        ${_sh.ahead>=0?'▲ +'+fmt(_sh.ahead):'▼ '+fmt(Math.abs(_sh.ahead))} P ${_sh.ahead>=0?'vor':'hinter'} deinem alten Ich
+      </span>
+    </div>
+  </div>` : "";
+
+  /* v3.0: Welle D — Season-Skin + Regal */
+  const _seKey="season_"+se.num;
+  const _ownedSeSkin=!!(owned[_seKey]);
+  const _seAcqM=se.num%3===1?"boss":se.num%3===2?"coins":"chain";
+  const _seCol=["#FF6B9D","#00CED1","#FFB347","#98FB98","#C39BD3","#76D7C4"][(se.num-1)%6];
+  const seasonSkinCard=`<h2>🌟 Saison-${se.num}-Skin</h2>
+  <div class="card">
+    <div class="row" style="align-items:center;gap:12px">
+      <div>${marbleSVG(r,52,"",_seKey,"")}</div>
+      <div class="grow">
+        <b style="font-size:15px">Saison ${se.num}</b>${_ownedSeSkin?' <span class="delta up">im Besitz ✅</span>':""}
+        <div class="mut" style="font-size:12px;margin-top:4px">Noch ${se.daysLeft} ${se.daysLeft===1?"Tag":"Tage"} in dieser Saison</div>
+        ${!_ownedSeSkin?`<div class="mut" style="font-size:12px;margin-top:3px">${_seAcqM==="boss"?"Monats-Boss besiegen":_seAcqM==="coins"?"Im Shop kaufen · 400 🪙":"Story-Kette abschließen"}</div>`:""}
+      </div>
+    </div>
+    ${!_ownedSeSkin&&_seAcqM==="coins"?`<button class="btn full" style="margin-top:10px" onclick="buySeasonSkin()">Kaufen · 400 🪙</button>`:""}
+    <p class="mut small" style="margin-top:8px">Einmalig · nur in Saison ${se.num} erhältlich</p>
+  </div>`;
+  const regalHtml=buildRegalHtml(g);
+
   return `<h1>Murmel${ikone?' <span class="badge" style="font-size:11px;background:rgba(10,132,255,.2);color:var(--pull)">Ikone</span>':''}</h1>
   <p class="sub">Dein Trainings-Level</p>
   ${eggBanner}
@@ -2502,21 +2820,23 @@ function vMarble(){
       <div style="text-align:center"><div class="marble-stage" style="padding:6px 0">${marbleSVG(r, 132, g.state.anim, skin, acc)}</div></div>
       ${nextPrev}
     </div>
-    <div class="rank-name">${r.name}</div>
+    <div class="rank-name">${r.name}${g.prestige?` <span style="color:var(--gold)">★${g.prestige}</span>`:""}</div>
     <div class="rank-state">${g.state.name} · ${g.state.desc}</div>
     <div class="quote" style="margin-top:8px">„${murmelQuote(g)}"</div>
     <div class="row" style="margin-top:14px"><div class="grow">
       <div class="row"><span class="lbl grow">Rang: ${r.name}</span><span class="mut num">${g.next?"→ "+g.next.name:"MAX"}</span></div>
       <div class="pbar"><div class="pfill" style="width:${(g.prog*100).toFixed(1)}%; background:${r.core}"></div></div>
-      <div class="mut num" style="margin-top:4px">${fmt(g.total)} P Basis · ${pctTxt}</div>
+      <div class="mut num" style="margin-top:4px">${fmt(g.effXp)} XP · ${pctTxt}</div>
     </div></div>
     <div class="row" style="margin-top:12px"><div class="grow">
-      <div class="row"><span class="lbl grow">Gesamt-XP</span><span class="num" style="color:var(--gold)">${fmt(xp)} XP</span></div>
-      <div class="pbar" style="margin-top:4px"><div class="pfill" style="width:${Math.min(100,(xp/5000*100)).toFixed(1)}%;background:var(--gold)"></div></div>
+      <div class="row"><span class="lbl grow">Gesamt-XP${g.prestige?" (lebenslang)":""}</span><span class="num" style="color:var(--gold)">${fmt(xp)} XP</span></div>
+      <div class="pbar" style="margin-top:4px"><div class="pfill" style="width:${Math.min(100,(g.effXp/g.step*100)).toFixed(1)}%;background:var(--gold)"></div></div>
       <div class="mut num" style="margin-top:4px">Basis ${fmt(g.total)} + Bonus ${fmt(xp-g.total)} XP</div>
     </div></div>
     <div class="skinrow">${skinBtns}</div>
   </div>
+  ${coinCard}
+  ${prestigeCard}
   <div class="kpis">
     <div class="kpi"><b class="num">${cs.score}</b><span>Konsistenz</span></div>
     <div class="kpi"><b class="num">${st.streak}</b><span>Wochen-Streak</span></div>
@@ -2530,6 +2850,9 @@ function vMarble(){
     <div class="row" style="margin-top:12px"><div class="grow"><b>Konsistenz: ${cs.label}</b>
       <div class="pbar" style="margin-top:6px"><div class="pfill" style="width:${cs.score}%; background:var(--legs)"></div></div></div></div>
   </div>
+  ${chainHtml}
+  ${bossHtml}
+  ${shadowHtml}
   <h2>Wochen-Quest</h2>
   <div class="quest ${q.done?"done":""}">
     <div class="row"><div class="grow"><b>${q.name}</b> ${q.done?'<span class="delta up">erfüllt ✓</span>':""}
@@ -2558,10 +2881,213 @@ function vMarble(){
   <p class="mut small" style="margin:10px 2px 0">Konsistenz +10/Session · Progression +5 · PR +25 · Wochenziel +50 · Satz +5 · RIR +5 · Gewicht +10 · RENPHO-Tag +15 · Bonus-XP von Meilensteinen &amp; Dates.</p>
   <h2>Letzte Punkte</h2>
   <div class="card">${recentPts || '<div class="mut">Noch keine Sessions.</div>'}</div>
+  ${seasonSkinCard}
+  <h2>🏛️ Regal</h2>
+  <div class="card">${regalHtml}</div>
   <h2>Rang-Leiter</h2>
   <div class="card">${ladder}</div>`;
 }
 function setSkin(k){ S.gami.skin = (k==="none"?null:k); save(); render(); }
+/* v3.0: Shop-Katalog — verkauft bestehende Skins per Münzen als alternativen Freischaltweg */
+const SHOP_SKINS = {
+  headband:{ name:"Stirnband", price:300, desc:"Sportliches Stirnband" },
+  glow:{     name:"Glow-Aura", price:300, desc:"Leuchtende Aura" },
+  crown:{    name:"Krone",     price:700, desc:"Königliche Krone" },
+};
+function buySeasonSkin(){
+  const g=computeGami(), se=seasonInfo(g);
+  if(se.num%3!==2){ toast("Dieser Saison-Skin ist nicht per Münzen erhältlich"); return; }
+  const k="season_"+se.num; S.gami.owned=S.gami.owned||{};
+  if(S.gami.owned[k]){ toast("Schon im Besitz ✅"); return; }
+  const bal=Math.max(0,g.coinsEarned-(S.gami.spent||0));
+  if(bal<400){ toast("Zu wenig Münzen: "+bal+"/400 🪙"); return; }
+  S.gami.spent=(S.gami.spent||0)+400; S.gami.owned[k]=true;
+  save(); render(); toast("Saison-"+se.num+"-Skin freigeschaltet! ✨");
+}
+function buySkin(k){
+  const it=SHOP_SKINS[k]; if(!it) return;
+  S.gami.owned = S.gami.owned || {};
+  if(S.gami.owned[k]){ toast("Schon im Besitz"); return; }
+  const g=computeGami(); const bal=Math.max(0, g.coinsEarned-(S.gami.spent||0));
+  if(bal<it.price){ toast("Zu wenig Münzen: "+bal+"/"+it.price+" 🪙"); return; }
+  S.gami.spent=(S.gami.spent||0)+it.price;
+  S.gami.owned[k]=true;
+  save(); render(); toast(it.name+" gekauft! ✨");
+}
+function doPrestige(){
+  const g=computeGami();
+  if(g.rank.key!=="legende"){ toast("Erst Legende erreichen"); return; }
+  if(!confirm("Wiedergeburt: Dein Rang startet neu bei Holz und du erhältst einen Prestige-Stern ★. Gesamt-XP und Historie bleiben erhalten. Fortfahren?")) return;
+  S.gami.prestige=(S.gami.prestige||0)+1;
+  S.gami.lastRankSeen="holz";
+  save(); render();
+  try{ spawnConfetti(); }catch(e){}
+  toast("Wiedergeburt! Prestige ★"+S.gami.prestige+" 🎉");
+}
+
+/* ===== v3.0: WELLE C — DAILY QUEST ===== */
+function dailyQuest(){
+  const today=todayStr(), dq=S.gami.daily;
+  if(!dq || dq.date!==today){
+    const dayNum=Math.floor(new Date(today+"T12:00:00").getTime()/86400000);
+    const def=DAILY_POOL[dayNum % DAILY_POOL.length];
+    const nd={date:today,key:def.key,name:def.name,desc:def.desc,target:def.target,done:false,claimed:false};
+    S.gami.daily=nd; save(); return nd;
+  }
+  return dq;
+}
+function dailyQuestProg(dq,g){
+  const today=todayStr();
+  const ts=S.sessions.filter(s=>s.date===today);
+  if(dq.key==="train"||dq.key==="nobreak") return Math.min(1,ts.length);
+  if(dq.key==="improve1") return Math.min(1,g.per.filter(p=>p.date===today&&p.bd.progression>0).length);
+  if(dq.key==="setcount") return ts.reduce((n,s)=>n+s.entries.reduce((m,e)=>m+e.sets.length,0),0);
+  if(dq.key==="rirlog") return ts.reduce((n,s)=>n+s.entries.reduce((m,e)=>m+e.sets.filter(st=>st.rir!=null).length,0),0);
+  return 0;
+}
+function checkAndClaimDailyQuest(){
+  try{
+    const dq=dailyQuest(); if(dq.claimed) return;
+    const g=computeGami(), prog=dailyQuestProg(dq,g);
+    if(prog>=dq.target){
+      S.gami.daily.done=true; S.gami.daily.claimed=true;
+      S.gami.bonusCoins=(S.gami.bonusCoins||0)+5; save();
+      setTimeout(()=>toast("Tagesquest erfüllt! +5 🪙 ✅"),800);
+    }
+  }catch(e){}
+}
+
+/* ===== v3.0: WELLE C — STORY-KETTEN ===== */
+function chainStepProg(step,startDate,g){
+  const sa=S.sessions.filter(s=>s.date>=startDate&&s.date<=todayStr());
+  const pa=g.per.filter(p=>p.date>=startDate&&p.date<=todayStr());
+  if(step.type==="sess_type") return Math.min(step.target,sa.filter(s=>s.type===step.stype).length);
+  if(step.type==="ex_prog")
+    return sa.some(s=>s.entries.some(e=>e.exerciseId===step.exId)&&pa.find(p=>p.id===s.id)?.bd.progression>0)?1:0;
+  if(step.type==="pr_muscle")
+    return sa.some(s=>s.entries.some(e=>S.exercises[e.exerciseId]?.muscle===step.muscle)&&pa.find(p=>p.id===s.id)?.bd.pr>0)?1:0;
+  return 0;
+}
+function activeChainData(g){
+  const gc=S.gami;
+  let ch=gc.chain;
+  const allDone=ch&&ch.claimedSteps&&ch.claimedSteps.every(Boolean);
+  if(!ch||!STORY_CHAINS.find(c=>c.id===ch.id)||allDone){
+    const done=gc.completedChains||[];
+    let next=STORY_CHAINS.find(c=>!done.includes(c.id))||STORY_CHAINS[done.length%STORY_CHAINS.length];
+    ch={id:next.id,startDate:todayStr(),claimedSteps:next.steps.map(()=>false)};
+    gc.chain=ch; save();
+  }
+  const def=STORY_CHAINS.find(c=>c.id===ch.id); if(!def) return null;
+  const curStep=ch.claimedSteps.findIndex(b=>!b);
+  const stepsData=def.steps.map((st,i)=>{
+    const claimed=ch.claimedSteps[i], isCur=i===curStep;
+    const prog=claimed?st.target:(isCur?chainStepProg(st,ch.startDate,g):0);
+    return {...st,claimed,isCur,prog,done:claimed||prog>=st.target};
+  });
+  return {def,ch,stepsData,curStep,allDone:stepsData.every(s=>s.claimed)};
+}
+function claimChainStep(){
+  const g=computeGami(), cd=activeChainData(g); if(!cd) return;
+  const {def,stepsData,curStep}=cd; if(curStep<0||curStep>=def.steps.length) return;
+  if(!stepsData[curStep].done){toast("Etappe noch nicht erfüllt ⏳");return;}
+  S.gami.chain.claimedSteps[curStep]=true;
+  const isLast=curStep===def.steps.length-1;
+  if(isLast){
+    S.gami.bonusCoins=(S.gami.bonusCoins||0)+def.reward.coins;
+    S.gami.completedChains=[...(S.gami.completedChains||[]),def.id];
+    S.gami.trophies=S.gami.trophies||{};
+    S.gami.trophies["chain_"+def.id]={ts:Date.now(),kind:"chain",name:def.reward.trophyName};
+    /* Season-Skin bei Ketten-Saison (num%3===0) */
+    const _cse=seasonInfo(g); if(_cse.num%3===0){ S.gami.owned=S.gami.owned||{}; S.gami.owned["season_"+_cse.num]=true; }
+    save();render();try{spawnConfetti();}catch(e){}
+    toast(def.name+" abgeschlossen! +"+def.reward.coins+" 🪙 🏆");
+  } else { save();render();toast("Etappe "+(curStep+1)+" ✓ — weiter zur nächsten!"); }
+}
+
+/* ===== v3.0: WELLE C — MONATS-BOSS ===== */
+function monthBoss(g){
+  const ym=todayStr().slice(0,7);
+  const mNum=parseInt(todayStr().slice(5,7),10)-1;
+  const def=BOSS_POOL[mNum%BOSS_POOL.length];
+  const prog=Math.min(def.target,def.prog(g,ym));
+  const defeated=!!(S.gami.boss&&S.gami.boss[ym]==="defeated");
+  return {...def,prog,defeated,pct:prog/def.target,ym};
+}
+function defeatBoss(){
+  const g=computeGami(), b=monthBoss(g);
+  if(b.defeated){toast("Boss bereits besiegt! 🎉");return;}
+  if(b.prog<b.target){toast(b.icon+" Noch nicht besiegt: "+b.prog+"/"+b.target+" "+b.unit);return;}
+  S.gami.boss=S.gami.boss||{};S.gami.boss[b.ym]="defeated";
+  S.gami.bonusCoins=(S.gami.bonusCoins||0)+100;
+  S.gami.trophies=S.gami.trophies||{};
+  S.gami.trophies["boss_"+b.ym]={ts:Date.now(),kind:"boss",name:b.name};
+  /* Season-Skin bei Boss-Saison (num%3===1) */
+  const _bse=seasonInfo(g); if(_bse.num%3===1){ S.gami.owned=S.gami.owned||{}; S.gami.owned["season_"+_bse.num]=true; }
+  save();render();try{spawnConfetti();}catch(e){}
+  toast(b.icon+" "+b.name+" besiegt! +100 🪙 + Trophäe 🏆");
+}
+
+/* ===== v3.0: WELLE C — SCHATTEN ===== */
+function shadowData(g){
+  const se=seasonInfo(g); if(se.num<=1) return null;
+  const curStart=se.start, prevStart=addDays(curStart,-28);
+  const dayOff=Math.max(0,Math.floor((new Date(todayStr()+"T12:00:00")-new Date(curStart+"T12:00:00"))/86400000));
+  const sameDay=addDays(prevStart,Math.min(dayOff,27));
+  const prevPts=g.per.filter(p=>p.date>=prevStart&&p.date<=sameDay).reduce((a,p)=>a+p.pts,0);
+  return {curPts:se.pts,prevPts,ahead:se.pts-prevPts,dayOff,prevNum:se.num-1};
+}
+
+/* ===== v3.0: WELLE D — JAHRES-HEATMAP ===== */
+function yearHeatmapSVG(){
+  const today=todayStr();
+  const td=new Date(today+"T12:00:00"), tdDay=td.getDay();
+  const monOff=tdDay===0?-6:1-tdDay;
+  const gridStart=addDays(addDays(today,monOff),-52*7);
+  const sm={}; for(const s of S.sessions) if(!sm[s.date]) sm[s.date]=s.type;
+  const C=7,G=1,St=C+G, LX=26,TY=18, cols=53;
+  const tc={push:"#FF453A",pull:"#0A84FF",legs:"#30D158"};
+  const mNames=["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
+  let cells="",months="",lastM="";
+  for(let w=0;w<cols;w++){
+    for(let d=0;d<7;d++){
+      const date=addDays(gridStart,w*7+d); if(date>today) continue;
+      const type=sm[date];
+      cells+=`<rect x="${LX+w*St}" y="${TY+d*St}" width="${C}" height="${C}" rx="1.5" fill="${type?tc[type]:"#1A1D22"}" opacity="${type?"1":".5"}"/>`;
+      if(d===0){ const mo=date.slice(0,7); if(mo!==lastM){ lastM=mo; const mi=parseInt(date.slice(5,7),10)-1; months+=`<text x="${LX+w*St}" y="${TY-3}" font-size="8" fill="#4E5560" font-family="-apple-system,sans-serif">${mNames[mi]}</text>`; } }
+    }
+  }
+  const dayLbls=[["Mo",0],["Mi",2],["Fr",4]].map(([l,r])=>`<text x="${LX-2}" y="${TY+r*St+C-1}" font-size="7" fill="#4E5560" text-anchor="end" font-family="-apple-system,sans-serif">${l}</text>`).join("");
+  const W=LX+cols*St+2, H=TY+7*St+4;
+  const legend=`<div class="row" style="margin-top:8px;gap:10px;font-size:11px;color:var(--mut)">
+    <span><svg width="9" height="9" style="vertical-align:middle"><rect width="9" height="9" rx="1.5" fill="#FF453A"/></svg> Push</span>
+    <span><svg width="9" height="9" style="vertical-align:middle"><rect width="9" height="9" rx="1.5" fill="#0A84FF"/></svg> Pull</span>
+    <span><svg width="9" height="9" style="vertical-align:middle"><rect width="9" height="9" rx="1.5" fill="#30D158"/></svg> Legs</span>
+    <span class="num" style="margin-left:auto">${S.sessions.length} Sessions gesamt</span>
+  </div>`;
+  return `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block;min-width:${W}px">${months}${dayLbls}${cells}</svg></div>${legend}`;
+}
+
+/* ===== v3.0: WELLE D — REGAL ===== */
+function buildRegalHtml(g){
+  const trophies=S.gami.trophies||{}, owned=S.gami.owned||{};
+  const rankMedals=RANKS.slice(1).filter(rk=>g.effXp>=rk.min).map(rk=>
+    `<div style="text-align:center;width:44px">${marbleSVG(rk,34,"")}<div style="font-size:8px;color:var(--mut);margin-top:2px">${rk.name}</div></div>`
+  ).join("");
+  const trophyItems=Object.entries(trophies).map(([k,t])=>{
+    const ico=k.startsWith("boss_")?"🏆":k.startsWith("chain_")?"⛓️":"🎖️";
+    const d=t.ts?new Date(t.ts).toLocaleDateString("de-DE",{month:"short",year:"2-digit"}):"";
+    return `<div style="text-align:center;width:56px"><div style="font-size:26px">${ico}</div><div style="font-size:8px;color:var(--mut);margin-top:2px;line-height:1.3">${t.name||k}</div>${d?`<div style="font-size:8px;color:var(--dim)">${d}</div>`:""}</div>`;
+  }).join("");
+  const seasonItems=Object.keys(owned).filter(k=>k.startsWith("season_")).map(k=>{
+    const sn=parseInt(k.slice(7))||1; const col=["#FF6B9D","#00CED1","#FFB347","#98FB98","#C39BD3","#76D7C4"][(sn-1)%6];
+    return `<div style="text-align:center;width:44px"><div style="width:34px;height:34px;border-radius:50%;border:2.5px solid ${col};display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:11px;font-weight:700;color:${col}">S${sn}</div><div style="font-size:8px;color:var(--mut);margin-top:2px">Saison ${sn}</div></div>`;
+  }).join("");
+  const all=rankMedals+trophyItems+seasonItems;
+  return all
+    ? `<div style="display:flex;flex-wrap:wrap;gap:10px 8px;padding:4px 0">${all}</div>`
+    : `<div class="mut" style="text-align:center;padding:16px 0;font-size:13px">Noch leer — trainiere weiter! 🪨</div>`;
+}
 
 /* ---------- POST-SESSION-REPORT (#31/#32) ---------- */
 function vSessionReport(){
@@ -2593,7 +3119,7 @@ function vSessionReport(){
     <div class="grow"><div class="lbl">Rang</div><b style="font-size:20px">${g.rank.name}</b></div>
   </div>
     <div class="pbar" style="margin-top:12px"><div class="pfill" style="width:${(g.prog*100).toFixed(1)}%; background:${g.rank.core}"></div></div>
-    <div class="mut num" style="margin-top:6px">${fmt(g.total)} P${g.next?` · noch ${fmt(g.next.min-g.total)} bis ${g.next.name}`:""}</div>
+    <div class="mut num" style="margin-top:6px">${fmt(g.effXp)} XP${g.next?` · noch ${fmt(g.next.min-g.effXp)} bis ${g.next.name}`:""}</div>
   </div>
   <button class="btn full" onclick="shareReport('${id}')" style="margin-top:6px">Als Bild teilen</button>
   <button class="btn full accent ${T.cls}" style="margin-top:10px" onclick="go('marble')">Murmel ansehen</button>
@@ -2625,7 +3151,7 @@ async function shareReport(id){
     hl.prs.slice(0,4).forEach(pr=>{ x.fillText("· "+pr.name+": "+fmt(pr.val)+" "+pr.unit+(pr.unit==="kg"?" × "+pr.reps:""), 84, yy); yy+=46; });
   }
   // Footer
-  x.fillStyle="#4E5560"; x.font="32px -apple-system,sans-serif"; x.fillText("Rang "+g.rank.name+" · "+fmt(g.total)+" P", 84, H-130);
+  x.fillStyle="#4E5560"; x.font="32px -apple-system,sans-serif"; x.fillText("Rang "+g.rank.name+(g.prestige?" ★"+g.prestige:"")+" · "+fmt(g.effXp)+" XP", 84, H-130);
   x.fillStyle="#8B93A0"; x.font="bold 36px -apple-system,sans-serif"; x.fillText("PPL · Murmel Tracker", 84, H-70);
   const blob=await new Promise(res=>cv.toBlob(res,"image/png"));
   if(!blob){ toast("Bild fehlgeschlagen"); return; }
@@ -2819,6 +3345,19 @@ function togglePlan(t,id){
   if (!S.gami.abilities)      S.gami.abilities = {};      /* {abilityKey: true} freigeschaltet */
   if (!S.gami.eggsSeen)       S.gami.eggsSeen = {};       /* {eggKey: "YYYY-MM-DD"} zuletzt gesehen */
   if (!S.gami.milestonesSeen) S.gami.milestonesSeen = {}; /* {key: true} einmalig angezeigt */
+  /* v3.0: Münzen-Ökonomie + Prestige */
+  if (S.gami.spent==null)      S.gami.spent = 0;          /* ausgegebene Münzen */
+  if (!S.gami.owned)           S.gami.owned = {};         /* {skinKey: true} gekaufte Kosmetik */
+  if (S.gami.prestige==null)   S.gami.prestige = 0;       /* Anzahl Wiedergeburten */
+  if (S.gami.prestigeVariant===undefined) S.gami.prestigeVariant = null;
+  if (S.gami.lastRankSeen==null){ try{ S.gami.lastRankSeen = computeGami().rank.key; }catch(e){ S.gami.lastRankSeen="holz"; } } /* für Aufstiegs-Zeremonie (Welle B) — initial = aktueller Rang, kein Retro-Trigger */
+  /* v3.0 Welle C */
+  if (S.gami.bonusCoins==null) S.gami.bonusCoins = 0;      /* Münz-Boni aus Quests, Boss, Ketten */
+  if (!S.gami.trophies)        S.gami.trophies = {};        /* {key:{ts,kind,name}} */
+  if (!S.gami.completedChains) S.gami.completedChains = []; /* abgeschlossene Ketten-IDs */
+  if (!S.gami.boss)            S.gami.boss = {};             /* {YYYY-MM:"defeated"} */
+  if (S.gami.daily===undefined) S.gami.daily = null;        /* Tagesquest-State */
+  if (!S.gami.chain)           S.gami.chain = null;         /* aktive Story-Kette */
   /* v1.6: Muskelgruppen nachtragen (alte Daten ohne muscle) */
   const MUMAP={flachbank:"chest",schraegbank:"chest",cablefly:"chest",schulterdruecken:"shoulders",seitheben:"shoulders",
     trizeps:"triceps",latzug:"back",kabelrudern:"back",facepulls:"back",preacher:"biceps",hammercurl:"biceps",
