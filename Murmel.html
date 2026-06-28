@@ -101,6 +101,21 @@ svg{max-width:100%;}
   font-size:13px; font-weight:600; z-index:99; opacity:0; transition:opacity .25s; pointer-events:none; white-space:nowrap;}
 .toast.show{opacity:1;}
 .badge{font-size:10px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; padding:2px 8px; border-radius:999px; border:1px solid var(--line); color:var(--mut);}
+/* v4.0: Lift Mastery */
+.lm-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:4px;}
+.lm-card{background:var(--card2); border:1px solid var(--line); border-radius:14px; padding:12px 12px 10px; display:flex; flex-direction:column; gap:6px; position:relative; overflow:hidden;}
+.lm-card.olympian{border-color:rgba(232,197,71,.5); background:rgba(232,197,71,.06);}
+.lm-card.champion{border-color:rgba(155,93,229,.4); background:rgba(155,93,229,.06);}
+.lm-card.platinum{border-color:rgba(10,132,255,.35); background:rgba(10,132,255,.05);}
+.lm-badge{display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; padding:2px 8px; border-radius:999px; border:1px solid currentColor; width:fit-content;}
+.lm-ex{font-size:13px; font-weight:700; line-height:1.2; margin-bottom:1px;}
+.lm-val{font-size:11px; color:var(--mut); font-family:var(--mono);}
+.lm-bar{height:3px; border-radius:2px; background:var(--line); overflow:hidden; margin-top:4px;}
+.lm-fill{height:100%; border-radius:2px; transition:width .5s;}
+.lm-new{position:absolute; top:8px; right:8px; font-size:9px; font-weight:800; letter-spacing:.05em; background:var(--legs); color:#000; padding:1px 6px; border-radius:999px;}
+@keyframes lm-rankup{0%{transform:scale(.5);opacity:0} 60%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1}}
+.lm-rankup-toast{position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:9998; background:var(--card); border:1px solid var(--lineS); border-radius:20px; padding:24px 28px; text-align:center; animation:lm-rankup .4s ease; min-width:240px; box-shadow:0 16px 48px rgba(0,0,0,.7);}
+
 .hint{font-size:13px; border-radius:10px; padding:8px 11px; margin-top:10px; background:rgba(255,255,255,.03); color:var(--mut); border:1px solid var(--line);}
 .hint.up{background:rgba(48,209,88,.08); color:#5ED27F; border-color:rgba(48,209,88,.2);}
 .hint.hold{background:rgba(232,197,71,.07); color:#D4B956; border-color:rgba(232,197,71,.2);}
@@ -247,9 +262,6 @@ svg{max-width:100%;}
 .preview-next{text-align:center; opacity:.5;}
 .quote{font-size:14px; color:var(--txt); font-style:italic; text-align:center; padding:4px 8px;}
 /* v1.6 */
-.rir{flex:none; min-width:52px; height:52px; border-radius:13px; border:1px solid var(--line); background:transparent;
-  color:var(--dim); font-size:11px; font-weight:700; font-family:var(--mono); letter-spacing:.02em;}
-.rir.set{color:var(--txt); border-color:var(--lineS); background:rgba(255,255,255,.05);}
 .musbar{margin-bottom:12px;}
 .musbar .top{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px;}
 .musbar .track{position:relative; height:10px; border-radius:5px; background:rgba(255,255,255,.05); overflow:visible;}
@@ -1198,7 +1210,7 @@ function vHome(){
       <div class="mut num" style="margin-top:4px">Ziel ${fmt(S.bodyweight.goalKg)} kg · noch ${bw?fmt(Math.max(0,bw.kg-S.bodyweight.goalKg)):"–"} kg</div>
     </div></div>
     <div class="row" style="margin-top:12px">
-      <input type="number" inputmode="decimal" step="0.1" id="bwIn" placeholder="z.B. 90,4" class="grow">
+      <input type="text" inputmode="decimal" id="bwIn" placeholder="z.B. 90,4" class="grow" oninput="this.value=this.value.replace(/[^0-9.,]/g,'')">
       <button class="btn" onclick="addBw()">Eintragen</button>
     </div></div>`;
 }
@@ -1241,7 +1253,6 @@ function vSession(){
         <div class="setno">${si+1}</div>
         ${sec ? stepper(ei,si,"seconds", st.seconds, "s") : stepper(ei,si,"kg", st.kg, "kg")}
         ${sec ? "" : stepper(ei,si,"reps", st.reps, "Reps")}
-        ${sec ? "" : `<button class="rir ${st.rir!==undefined&&st.rir!==null?"set":""}" onclick="cycleRir(${ei},${si})" title="Reps im Tank">${st.rir!==undefined&&st.rir!==null?"RIR "+st.rir:"RIR"}</button>`}
         <button class="check ${st.done?"on":""} ${T.cls}" onclick="toggleDone(${ei},${si})">✓</button>
       </div>`).join("");
     const pl = sec ? {plateau:false,deload:false} : plateauInfo(e.exerciseId);
@@ -1250,6 +1261,7 @@ function vSession(){
     return `<div class="card ${T.cls}"${anchor} data-ei="${ei}">
       <div class="row" style="align-items:flex-start"><div class="grow">
         <b>${esc(ex.name)}</b>
+        ${lmBadgeHtml(e.exerciseId)}
         ${ex.perSide?'<span class="badge">pro Seite</span>':""}
         ${sec?'<span class="badge">Sekunden</span>':""}
         ${ex.muscle&&MUSCLES[ex.muscle]?`<span class="badge">${MUSCLES[ex.muscle].name}</span>`:""}
@@ -1317,15 +1329,6 @@ function addTag(ei,tag){
   e.notes = e.notes ? (e.notes.replace(/\s*$/,"")+" · "+tag) : tag;
   save(); render();
 }
-/* RIR pro Satz durchschalten: – → 0 → 1 → 2 → 3 → – (#14) */
-function cycleRir(ei,si){
-  const st=S.draft.entries[ei].sets[si];
-  const seq=[undefined,0,1,2,3];
-  const cur=seq.indexOf(st.rir===undefined||st.rir===null?undefined:st.rir);
-  const nx=seq[(cur+1)%seq.length];
-  if(nx===undefined) delete st.rir; else st.rir=nx;
-  save(); render();
-}
 /* Ersatzübungen-Sheet (#19) */
 function openSubSheet(ei){
   if ($("sheet-bg")) return;
@@ -1371,9 +1374,10 @@ function chg(ei,si,field,dir){
 }
 function inlineEdit(elId, cur, cb){
   const el=$(elId); if(!el || el.querySelector("input")) return;
-  el.innerHTML = `<input type="number" inputmode="decimal" step="any" value="${cur}">`;
+  el.innerHTML = `<input type="text" inputmode="decimal" style="width:64px; min-height:40px; padding:4px; text-align:center; font-weight:700; font-size:16px; background:var(--bg); border:1px solid var(--accB,var(--lineS)); border-radius:8px; color:var(--txt); font-family:var(--mono);" value="${cur}">`;
   const inp=el.querySelector("input");
   inp.focus(); inp.select();
+  inp.addEventListener("input", ()=>{ inp.value = inp.value.replace(/[^0-9.,]/g,""); });
   const commit=()=>{ const v=parseFloat(String(inp.value).replace(",", "."));
     cb(isNaN(v)?cur:Math.max(0,+v.toFixed(2))); };
   inp.onblur=commit;
@@ -1498,6 +1502,8 @@ function doFinish(mode){
       }
     }catch(e){}
   }, 100);
+  /* v4.0: Lift Mastery Rang-Prüfung */
+  setTimeout(()=>{ try{ checkLiftMasteryRankUps(); }catch(e){} }, 2400);
 }
 
 /* ================= v1.9 HELFER ================= */
@@ -2107,7 +2113,6 @@ const WEEKLY_CHALLENGE_POOL = [
   {key:"pr2",       name:"2 neue Bestleistungen",       desc:"2 persönliche Rekorde diese Woche aufstellen.",                     target:2},
   {key:"fullppl",   name:"Voller Split",                desc:"Push, Pull und Legs je einmal diese Woche trainieren.",             target:3},
   {key:"volume10k", name:"10.000 kg Tonnage",           desc:"10.000 kg Gesamt-Volumen diese Woche heben.",                      target:10000},
-  {key:"rir9sets",  name:"RIR bei 9 Sätzen",            desc:"Den RIR-Wert bei mindestens 9 Sätzen diese Woche notieren.",       target:9},
   {key:"setmax30",  name:"30 Sätze diese Woche",        desc:"Mindestens 30 Sätze insgesamt diese Woche loggen.",                target:30},
 ];
 /* v4.0: Plateau-Variationen je Übungs-Typ */
@@ -2167,8 +2172,28 @@ const BOSS_POOL = [
     prog:(g,ym)=>S.sessions.filter(s=>s.date.startsWith(ym)).length},
   {key:"prs",      name:"PR-Jäger",            icon:"🏆", desc:"5 neue Bestleistungen diesen Monat aufstellen.", target:5,    unit:"PRs",
     prog:(g,ym)=>g.per.filter(p=>p.date.startsWith(ym)).reduce((n,p)=>n+Math.round(p.bd.pr/25),0)},
-  {key:"streak",   name:"Der Unerbittliche",   icon:"🔥", desc:"3 Wochen Streak diesen Monat aufrechterhalten.", target:3,   unit:"Wochen",
-    prog:(g,ym)=>{ const st=streakInfo(); return st.streak; }},
+  {key:"lagging",  name:"Der Schwachpunkt",    icon:"⚠️",
+    desc:"Bring deine schwächste Lift-Mastery-Kategorie auf den nächsten Rang.",
+    target:1, unit:"Rang-Ups",
+    /* dynamisch zur Laufzeit befüllt – prog() gibt 0 oder 1 zurück */
+    prog:(g,ym)=>{
+      try{
+        const cat=lmWeakestCategory();
+        if(!cat) return 0;
+        /* geprüft: hat sich der Rang seit Monatsanfang erhöht? */
+        const lm=S.gami.liftMastery||{};
+        const monthStart=ym+"-01";
+        const exIds=Object.keys(S.plan[cat.type]?{}:S.exercises)
+          .filter(id=>S.plan[cat.type]?.includes(id)||(cat.exIds||[]).includes(id));
+        const improved=cat.exIds.some(id=>{
+          const stored=lm[id]||{rankIdx:0};
+          /* rankIdx jetzt vs. was zu Monatsanfang war – approximiert via ts */
+          const cur=lmRankFor(id,lmBestMetric(id)).idx;
+          return cur>(stored.rankIdx||0) && stored.ts && new Date(stored.ts)>=new Date(monthStart);
+        });
+        return improved?1:0;
+      }catch(e){ return 0; }
+    }},
 ];
 function weeksMap(){ const m={}; for(const s of S.sessions){ if(s.date>todayStr()) continue; const w=isoWeek(s.date); m[w]=(m[w]||0)+1; } return m; }
 function consistencyScore(){
@@ -2368,7 +2393,7 @@ function skinsUnlocked(g=computeGami()){
 
 /* ================= v1.8: XP-ERWEITERUNGEN ================= */
 
-/* Bonus-XP aus Sessions (Sätze, RIR, Konsistenz) */
+/* Bonus-XP aus Sessions (Sätze, Konsistenz) */
 function sessionXpBonus(){
   const sess=[...S.sessions].filter(s=>s.date<=todayStr());
   let xp=0;
@@ -2377,7 +2402,6 @@ function sessionXpBonus(){
     for(const e of s.entries){
       for(const st of (e.sets||[])){
         if(st.done) xp+=5;                     /* +5 pro abgeschlossenem Satz */
-        if(st.rir!=null) xp+=5;               /* +5 pro RIR-Eintrag */
       }
     }
     const wk=isoWeek(s.date); weekMap[wk]=(weekMap[wk]||0)+1;
@@ -2401,33 +2425,40 @@ function sessionXpBonus(){
 function totalXp(g){ return g.rankXp!=null ? g.rankXp : g.total + sessionXpBonus(); }
 
 /* ---- FÄHIGKEITEN-BAUM ---- */
+/* Niedrigster LM-Rang-Index (0–6) einer PPL-Kategorie — für Fähigkeiten-Baum-Gates */
+function lmCategoryMinRank(type){
+  const exIds=(S.plan[type]||[]).filter(id=>{ const ex=S.exercises[id]; return ex && ex.unit!=="seconds"; });
+  if(!exIds.length) return 0;
+  return Math.min(...exIds.map(id=>lmRankFor(id,lmBestMetric(id)).idx));
+}
+
 const ABILITY_TREES = [
   { key:"kraft", label:"Kraft", icon:"🔴", color:"var(--push)",
     abilities:[
-      { key:"eisenfaust", name:"Eisenfaust", xp:500,  cond:(g,stats)=>stats.pushCount>=10,
-        condLabel:"10 Push-Sessions", cosm:"bandage", func:"PR-Verlauf im Chart sichtbar" },
-      { key:"kraftwerk",  name:"Kraftwerk",  xp:1500, cond:(g,stats)=>stats.pushCount>=25,
-        condLabel:"25 Push-Sessions", cosm:"belt", func:"Coach-Plateau-Warnung früher" },
-      { key:"titan",      name:"Titan",      xp:4000, cond:(g,stats)=>stats.pushCount>=50,
-        condLabel:"50 Push-Sessions", cosm:"crown_belt", func:"Gold-Aura freigeschaltet" },
+      { key:"eisenfaust", name:"Eisenfaust", xp:500,  cond:(g,stats)=>lmCategoryMinRank("push")>=1,
+        condLabel:"Push-Übungen: mind. Bronze", cosm:"bandage", func:"PR-Verlauf im Chart sichtbar" },
+      { key:"kraftwerk",  name:"Kraftwerk",  xp:1500, cond:(g,stats)=>lmCategoryMinRank("push")>=3,
+        condLabel:"Push-Übungen: mind. Gold", cosm:"belt", func:"Coach-Plateau-Warnung früher" },
+      { key:"titan",      name:"Titan",      xp:4000, cond:(g,stats)=>lmCategoryMinRank("push")>=5,
+        condLabel:"Push-Übungen: mind. Champion", cosm:"crown_belt", func:"Gold-Aura freigeschaltet" },
     ]},
   { key:"ausdauer", label:"Ausdauer", icon:"🔵", color:"var(--pull)",
     abilities:[
-      { key:"eiswille",  name:"Eiserner Wille", xp:400,  cond:(g,stats)=>stats.pullCount>=10,
-        condLabel:"10 Pull-Sessions", cosm:"headband", func:"+1 Streak-Freeze" },
-      { key:"maschine",  name:"Maschine",       xp:1200, cond:(g,stats)=>stats.pullCount>=25,
-        condLabel:"25 Pull-Sessions", cosm:"sweatband", func:"Volumen-Chart zeigt 8 Wochen" },
-      { key:"legende",   name:"Legende",        xp:3500, cond:(g,stats)=>stats.pullCount>=50,
-        condLabel:"50 Pull-Sessions", cosm:"halo", func:"Silber-Aura freigeschaltet" },
+      { key:"eiswille",  name:"Eiserner Wille", xp:400,  cond:(g,stats)=>lmCategoryMinRank("pull")>=1,
+        condLabel:"Pull-Übungen: mind. Bronze", cosm:"headband", func:"+1 Streak-Freeze" },
+      { key:"maschine",  name:"Maschine",       xp:1200, cond:(g,stats)=>lmCategoryMinRank("pull")>=3,
+        condLabel:"Pull-Übungen: mind. Gold", cosm:"sweatband", func:"Volumen-Chart zeigt 8 Wochen" },
+      { key:"legende",   name:"Legende",        xp:3500, cond:(g,stats)=>lmCategoryMinRank("pull")>=5,
+        condLabel:"Pull-Übungen: mind. Champion", cosm:"halo", func:"Silber-Aura freigeschaltet" },
     ]},
   { key:"recomp", label:"Recomp", icon:"🟢", color:"var(--legs)",
     abilities:[
-      { key:"bodyhacker",    name:"Body Hacker",    xp:300,  cond:(g,stats)=>stats.renphoDays>=5,
-        condLabel:"5 RENPHO-Tage", cosm:"lens", func:"Kraft/Muskelmasse-Ratio sichtbar" },
-      { key:"recomppro",     name:"Recomp Pro",     xp:1000, cond:(g,stats)=>stats.renphoDays>=15,
-        condLabel:"15 RENPHO-Tage", cosm:"tape", func:"3-Szenario-Projektion (best/likely/worst)" },
-      { key:"transformation",name:"Transformation", xp:3000, cond:(g,stats)=>stats.renphoDays>=30,
-        condLabel:"30 RENPHO-Tage", cosm:"cape", func:"Recomp-Score im Körper-Tab" },
+      { key:"bodyhacker",    name:"Body Hacker",    xp:300,  cond:(g,stats)=>lmCategoryMinRank("legs")>=1,
+        condLabel:"Legs-Übungen: mind. Bronze", cosm:"lens", func:"Kraft/Muskelmasse-Ratio sichtbar" },
+      { key:"recomppro",     name:"Recomp Pro",     xp:1000, cond:(g,stats)=>lmCategoryMinRank("legs")>=3,
+        condLabel:"Legs-Übungen: mind. Gold", cosm:"tape", func:"3-Szenario-Projektion (best/likely/worst)" },
+      { key:"transformation",name:"Transformation", xp:3000, cond:(g,stats)=>lmCategoryMinRank("legs")>=5,
+        condLabel:"Legs-Übungen: mind. Champion", cosm:"cape", func:"Recomp-Score im Körper-Tab" },
     ]},
   { key:"disziplin", label:"Disziplin", icon:"⚡", color:"var(--gold)",
     abilities:[
@@ -2702,6 +2733,213 @@ function marbleSVG(rank, size, animClass, skin, accessories=""){
       ${sparkle}${skinEl}${accLayer}${dustEl}${prestigeEl}
     </svg></div>`;
 }
+/* ================= v4.0: LIFT MASTERY ================= */
+/* Rang-Stufen: Stone → Bronze → Silver → Gold → Platinum → Champion → Olympian
+   Schwelle basiert auf geschätztem 1RM (Epley) des besten Sets je Übung.
+   Für Sekunden-Übungen wird der beste Einzelwert in Sekunden gewertet. */
+const LM_RANKS = [
+  { key:"stone",    name:"Stone",    icon:"🪨", color:"#8B7355", glow:"rgba(139,115,85,.5)",  min:0   },
+  { key:"bronze",   name:"Bronze",   icon:"🟤", color:"#CD7F32", glow:"rgba(205,127,50,.5)",  min:20  },
+  { key:"silver",   name:"Silver",   icon:"⚪", color:"#C0C0C0", glow:"rgba(192,192,192,.5)", min:40  },
+  { key:"gold",     name:"Gold",     icon:"🟡", color:"#E8C547", glow:"rgba(232,197,71,.5)",  min:65  },
+  { key:"platinum", name:"Platinum", icon:"🔵", color:"#00CED1", glow:"rgba(0,206,209,.5)",   min:90  },
+  { key:"champion", name:"Champion", icon:"💜", color:"#9b5de5", glow:"rgba(155,93,229,.5)",  min:120 },
+  { key:"olympian", name:"Olympian", icon:"✨", color:"#E8C547", glow:"rgba(255,215,0,.7)",   min:160 },
+];
+/* Per-Übung: Schwellen in "Einheiten" (kg e1RM für Gewicht, Sekunden für Zeit).
+   Tabelle bildet auf LM_RANKS.min-Skala ab: Score = e1RM (kg) oder Sekunden.
+   Übungen ohne Eintrag erhalten Default-Skala. */
+const LM_THRESHOLDS = {
+  /* Push */
+  flachbank:        [0,15,25,35,50,70,95],
+  schraegbank:      [0,12,22,32,47,65,88],
+  schulterdruecken: [0,10,18,27,40,58,80],
+  seitheben:        [0,5, 9, 14, 20,28,38],
+  cablefly:         [0,8, 14, 20, 30,42,58],
+  trizeps:          [0,12,20, 30, 45,62,82],
+  /* Pull */
+  latzug:           [0,30,50,70,90,115,148],
+  kabelrudern:      [0,15,25,37,52,70, 92],
+  facepulls:        [0,8, 14, 20, 30,42, 58],
+  preacher:         [0,20,35,52,70,92, 120],
+  hammercurl:       [0,8, 14, 20, 30,42, 58],
+  /* Legs */
+  beinpresse:       [0,60,90,120,155,195,240],
+  rdl:              [0,20,35, 52, 72, 95, 125],
+  beinstrecker:     [0,25,42, 62, 85,110, 142],
+  beinbeuger:       [0,18,30, 45, 62, 82, 108],
+  /* Plank (seconds) */
+  plank:            [0,20,40, 60, 90, 120, 180],
+};
+const LM_DEFAULT =    [0,20,40, 65, 95, 130, 175]; /* Fallback für custom Übungen */
+
+function lmThresholds(exId){
+  return LM_THRESHOLDS[exId] || LM_DEFAULT;
+}
+/* Bester Metric-Wert einer Übung über alle Sessions */
+function lmBestMetric(exId){
+  const ex = S.exercises[exId]; if(!ex) return 0;
+  let best = 0;
+  for(const s of S.sessions){
+    const e = s.entries.find(x=>x.exerciseId===exId); if(!e) continue;
+    for(const st of e.sets){
+      const val = ex.unit==="seconds"
+        ? (st.seconds||0)
+        : e1rm(st.kg||0, st.reps||0);
+      if(val>best) best=val;
+    }
+  }
+  return +best.toFixed(1);
+}
+/* Rang-Objekt für einen gegebenen Metric-Wert */
+function lmRankFor(exId, metric){
+  const thr = lmThresholds(exId);
+  let idx=0;
+  for(let i=thr.length-1;i>=0;i--){ if(metric>=thr[i]){ idx=i; break; } }
+  return { ...LM_RANKS[idx], idx, next: idx<LM_RANKS.length-1 ? LM_RANKS[idx+1] : null,
+    nextThr: idx<thr.length-1 ? thr[idx+1] : null, curThr: thr[idx], metric };
+}
+/* Vollständige Lift Mastery Map: {exId → rankObj} */
+function computeLiftMastery(){
+  const out={};
+  for(const id of Object.keys(S.exercises)){
+    const ex=S.exercises[id]; if(ex.unit==="seconds" && id!=="plank") continue;
+    const m=lmBestMetric(id);
+    out[id]=lmRankFor(id,m);
+  }
+  return out;
+}
+/* Prüfe nach jeder Session ob neue Ränge erreicht wurden → Toast + Trophy */
+function checkLiftMasteryRankUps(){
+  const map=computeLiftMastery();
+  const gained=[];
+  S.gami.liftMastery = S.gami.liftMastery||{};
+  for(const [exId,rk] of Object.entries(map)){
+    const prev=(S.gami.liftMastery[exId]||{}).rankIdx||0;
+    if(rk.idx>prev){
+      gained.push({exId, ex:S.exercises[exId], rank:rk, prevIdx:prev});
+      S.gami.liftMastery[exId]={rankIdx:rk.idx, ts:Date.now()};
+      /* Olympian → permanentes Trophy */
+      if(rk.key==="olympian"){
+        S.gami.trophies=S.gami.trophies||{};
+        S.gami.trophies["lm_olympian_"+exId]={ts:Date.now(), kind:"olympian", name:"Olympian: "+S.exercises[exId].name};
+      }
+    }
+  }
+  if(gained.length){ save(); showLiftMasteryRankUp(gained); }
+}
+function showLiftMasteryRankUp(gained){
+  try{ document.getElementById("lm-rankup-toast")?.remove(); }catch(e){}
+  const top=gained[gained.length-1]; /* letzter / höchster */
+  const el=document.createElement("div");
+  el.id="lm-rankup-toast"; el.className="lm-rankup-toast";
+  el.innerHTML=`<div style="font-size:32px">${lmSeasonIcon(top.rank.key)}</div>
+    <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut);margin:6px 0 2px">Lift Mastery</div>
+    <div style="font-size:20px;font-weight:800;color:${top.rank.color}">${top.rank.name}</div>
+    <div style="font-size:13px;color:var(--mut);margin:4px 0 14px">${top.ex.name}</div>
+    <button class="btn full" onclick="document.getElementById('lm-rankup-toast')?.remove()">Weiter 💪</button>`;
+  document.body.appendChild(el);
+  try{ if(S.settings.sound!==false) beepRankUp(); }catch(e){}
+  try{ spawnConfetti(); }catch(e){}
+  /* Auto-close nach 6s */
+  setTimeout(()=>{ try{ el.remove(); }catch(e){} }, 6000);
+}
+/* Kleines Badge-HTML für Übungs-Karten */
+function lmBadgeHtml(exId){
+  const stored=(S.gami.liftMastery||{})[exId];
+  if(!stored || !stored.rankIdx) return "";
+  const rk=LM_RANKS[stored.rankIdx];
+  const icon=lmSeasonIcon(rk.key);
+  const decayed=lmDecayLevel(exId)>0;
+  const crackStyle=decayed?`opacity:.6;text-decoration:line-through;`:"";
+  const crackSuffix=decayed?' <span style="font-size:9px;color:#FF8A82">💢</span>':"";
+  return `<span class="lm-badge" style="color:${rk.color};border-color:${rk.color};${crackStyle}">${icon} ${rk.name}${crackSuffix}</span>`;
+}
+
+/* Saisonales Icon für LM-Badges: tauscht Rang-Icon gegen saisonales Emoji */
+const LM_SEASON_ICONS = {
+  stone:    ["🪨","🌸","☀️","🍂","❄️","🌱"],
+  bronze:   ["🟤","🌷","🌻","🍁","🥶","🌿"],
+  silver:   ["⚪","🌼","💫","🌙","🔮","💎"],
+  gold:     ["🟡","✨","🌟","🏆","⭐","💛"],
+  platinum: ["🔵","💙","🩵","🫐","🧊","🔷"],
+  champion: ["💜","🦋","🌈","🍇","🔮","💜"],
+  olympian: ["✨","🌺","☀️","🍀","🌟","🏅"],
+};
+function lmSeasonIcon(rankKey){
+  try{
+    const g=computeGami(), se=seasonInfo(g);
+    const icons=LM_SEASON_ICONS[rankKey]||LM_SEASON_ICONS.stone;
+    return icons[(se.num-1)%icons.length];
+  }catch(e){ return LM_RANKS.find(r=>r.key===rankKey)?.icon||"🪨"; }
+}
+/* Verfall-Level: 0 = frisch, 1 = Riss (>21 Tage nicht trainiert) */
+function lmDecayLevel(exId){
+  const pastSessions=[...S.sessions].filter(s=>s.date<=todayStr()).sort((a,b)=>a.date<b.date?1:-1);
+  const last=pastSessions.find(s=>s.entries.some(e=>e.exerciseId===exId));
+  if(!last) return 0;
+  const daysSince=(new Date(todayStr()+"T12:00:00")-new Date(last.date+"T12:00:00"))/86400000;
+  return daysSince>=21?1:0;
+}
+
+/* Signature Lift: auto-assigned to the exercise with the highest LM rank (ties broken by metric) */
+function signatureLift(){
+  const map=computeLiftMastery();
+  const ids=Object.keys(map);
+  if(!ids.length) return null;
+  const best=ids.reduce((a,b)=>(map[b].idx>map[a].idx||(map[b].idx===map[a].idx&&map[b].metric>map[a].metric))?b:a, ids[0]);
+  return {exId:best, ex:S.exercises[best], rk:map[best]};
+}
+
+function vLiftMastery(){
+  const map=computeLiftMastery();
+  const exIds=Object.keys(map);
+  if(!exIds.length) return '<div class="mut" style="text-align:center;padding:16px">Noch keine Daten.</div>';
+  /* Signature Lift card */
+  const sig=signatureLift();
+  const sigIcon=lmSeasonIcon(sig?.rk?.key||"stone");
+  const sigCard=sig?`<div class="card" style="margin-bottom:10px;border-color:${sig.rk.color};background:linear-gradient(135deg,rgba(0,0,0,0) 60%,${sig.rk.color}18)">
+    <div class="row" style="align-items:center;gap:12px">
+      <div style="font-size:36px;line-height:1">${sigIcon}</div>
+      <div class="grow">
+        <div class="lbl" style="color:${sig.rk.color}">✦ Signature Lift</div>
+        <div style="font-size:17px;font-weight:800;margin:2px 0">${esc(sig.ex.name)}</div>
+        <div class="lm-badge" style="color:${sig.rk.color};border-color:${sig.rk.color};margin-top:4px">${sigIcon} ${sig.rk.name}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="num" style="font-size:20px;font-weight:700;color:${sig.rk.color}">${sig.ex.unit==="seconds"?sig.rk.metric+"s":fmt(sig.rk.metric)+" kg"}</div>
+        <div class="mut" style="font-size:10px">${sig.ex.unit==="seconds"?"Bestzeit":"e1RM"}</div>
+      </div>
+    </div>
+  </div>`:"";
+  /* Sortiert: höchster Rang zuerst, dann nach Metric */
+  const sorted=[...exIds].sort((a,b)=>(map[b].idx-map[a].idx)||((map[b].metric||0)-(map[a].metric||0)));
+  const cards=sorted.map(id=>{
+    const rk=map[id]; const ex=S.exercises[id]; const isTime=ex.unit==="seconds";
+    const stored=(S.gami.liftMastery||{})[id]||{};
+    const isNew=stored.ts && (Date.now()-stored.ts)<86400000*3;
+    const pct=rk.nextThr ? Math.min(100, ((rk.metric-rk.curThr)/(rk.nextThr-rk.curThr)*100)) : 100;
+    const icon=lmSeasonIcon(rk.key);
+    const decayed=lmDecayLevel(id)>0;
+    const decayHint=decayed?`<div style="font-size:10px;color:#FF8A82;margin-top:2px">💢 21+ Tage nicht trainiert</div>`:"";
+    const cardStyle=decayed?`opacity:.72;border-style:dashed;`:"";
+    return `<div class="lm-card ${rk.key}" style="${cardStyle}">
+      ${isNew&&rk.idx>0?`<div class="lm-new">NEU</div>`:""}
+      <div class="lm-badge" style="color:${rk.color};border-color:${rk.color}">${icon} ${rk.name}</div>
+      <div class="lm-ex">${esc(ex.name)}</div>
+      <div class="lm-val">${isTime?rk.metric+"s":fmt(rk.metric)+" kg e1RM"}</div>
+      <div class="lm-bar"><div class="lm-fill" style="width:${pct.toFixed(0)}%;background:${rk.color}"></div></div>
+      <div class="mut" style="font-size:10px;margin-top:2px">${rk.nextThr?`→ ${rk.next.name} ab ${isTime?rk.nextThr+"s":fmt(rk.nextThr)+" kg"}`:"MAX ✨"}</div>
+      ${decayHint}
+    </div>`;
+  }).join("");
+  const olympians=sorted.filter(id=>map[id].key==="olympian").length;
+  return `${sigCard}<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+    <div class="mut" style="font-size:12px">${exIds.length} Übungen · ${olympians} Olympians</div>
+  </div>
+  <div class="lm-grid">${cards}</div>`;
+}
+
 function vMarble(){
   const g = computeGami();
   const r = g.rank;
@@ -2976,12 +3214,14 @@ function vMarble(){
     <div><b class="num" style="color:var(--gold)">${fmt(S.gami.xpBonus||0)}</b><span>Bonus-XP</span></div>
     <div><b class="num" style="color:var(--gold)">${fmt(xp)}</b><span>Gesamt-XP</span></div>
   </div>
-  <p class="mut small" style="margin:10px 2px 0">Konsistenz +10/Session · Progression +5 · PR +25 · Wochenziel +50 · Satz +5 · RIR +5 · Gewicht +10 · RENPHO-Tag +15 · Bonus-XP von Meilensteinen &amp; Dates.</p>
+  <p class="mut small" style="margin:10px 2px 0">Konsistenz +10/Session · Progression +5 · PR +25 · Wochenziel +50 · Satz +5 · Gewicht +10 · RENPHO-Tag +15 · Bonus-XP von Meilensteinen &amp; Dates.</p>
   <h2>Letzte Punkte</h2>
   <div class="card">${recentPts || '<div class="mut">Noch keine Sessions.</div>'}</div>
   ${seasonSkinCard}
   <h2>🏛️ Regal</h2>
   <div class="card">${regalHtml}</div>
+  <h2>🏅 Lift Mastery</h2>
+  <div class="card" style="padding:14px 12px">${vLiftMastery()}</div>
   <h2>Rang-Leiter</h2>
   <div class="card">${ladder}</div>`;
 }
@@ -3044,7 +3284,6 @@ function weeklyChallengeProgress(wc,g){
   if(wc.key==="pr2") return tw.reduce((n,p)=>n+Math.round(p.bd.pr/25),0);
   if(wc.key==="fullppl") return new Set(tws.map(s=>s.type)).size;
   if(wc.key==="volume10k") return Math.round(tws.reduce((n,s)=>n+sessionVolume(s),0));
-  if(wc.key==="rir9sets") return tws.reduce((n,s)=>n+s.entries.reduce((m,e)=>m+e.sets.filter(st=>st.rir!=null).length,0),0);
   if(wc.key==="setmax30") return tws.reduce((n,s)=>n+s.entries.reduce((m,e)=>m+e.sets.length,0),0);
   return 0;
 }
@@ -3113,9 +3352,36 @@ function claimChainStep(){
 }
 
 /* ===== v4.0 WELLE E: MULTI-TIER BOSS ===== */
+/* Hilfsfunktion: Schwächste PPL-Kategorie nach mittlerem Lift-Mastery-Rang */
+function lmWeakestCategory(){
+  const planMap={ push: S.plan.push||[], pull: S.plan.pull||[], legs: S.plan.legs||[] };
+  let weakest=null, lowestAvg=Infinity;
+  for(const [type, exIds] of Object.entries(planMap)){
+    const kgIds=exIds.filter(id=>{ const ex=S.exercises[id]; return ex && ex.unit!=="seconds"; });
+    if(!kgIds.length) continue;
+    const avg=kgIds.reduce((sum,id)=>sum+lmRankFor(id,lmBestMetric(id)).idx,0)/kgIds.length;
+    if(avg<lowestAvg){ lowestAvg=avg; weakest={type, exIds:kgIds, avgIdx:avg}; }
+  }
+  return weakest;
+}
 function monthBoss(g){
   const ym=todayStr().slice(0,7), mNum=parseInt(todayStr().slice(5,7),10)-1;
-  const def=BOSS_POOL[mNum%BOSS_POOL.length];
+  let def=BOSS_POOL[mNum%BOSS_POOL.length];
+  /* Für den Lagging-Boss: dynamischer Name + Beschreibung aus schwächster Kategorie */
+  if(def.key==="lagging"){
+    try{
+      const cat=lmWeakestCategory();
+      if(cat){
+        const typeLabel={push:"Push",pull:"Pull",legs:"Legs"}[cat.type]||cat.type;
+        const worstEx=cat.exIds.reduce((a,id)=>lmRankFor(id,lmBestMetric(id)).idx<lmRankFor(a,lmBestMetric(a)).idx?id:a, cat.exIds[0]);
+        const worstRk=lmRankFor(worstEx,lmBestMetric(worstEx));
+        def={...def,
+          name:"Schwachpunkt: "+typeLabel,
+          desc:`Dein ${typeLabel}-Bereich hinkt hinterher — bring ${S.exercises[worstEx]?.name||worstEx} von ${worstRk.name} auf ${worstRk.next?.name||"MAX"}.`
+        };
+      }
+    }catch(e){}
+  }
   const bRaw=S.gami.boss&&S.gami.boss[ym];
   const bObj=typeof bRaw==="object"?bRaw:(bRaw==="defeated"?{main:"defeated"}:{});
   if(!bObj.main||bObj.main!=="defeated"){
@@ -3735,6 +4001,18 @@ function togglePlan(t,id){
   if (S.gami.daily===undefined) S.gami.daily = null;        /* Tagesquest-State */
   if (!S.gami.chain)           S.gami.chain = null;         /* aktive Story-Kette */
   /* v4.0 Welle E–I */
+  if (!S.gami.liftMastery)    S.gami.liftMastery = {};    /* {exId: {rankIdx, ts}} */
+  /* Baseline: bestehende Ränge aus Verlauf einspielen, damit Badges sofort sichtbar sind
+     und Rang-Up-Erkennung eine korrekte Ausgangsbasis hat (kein Retro-Trigger). */
+  if (!S.gami.liftMasterySeeded){
+    try{
+      const _lm0=computeLiftMastery();
+      for(const [id,rk] of Object.entries(_lm0)){
+        if(!S.gami.liftMastery[id]) S.gami.liftMastery[id]={rankIdx:rk.idx, ts:0};
+      }
+    }catch(e){}
+    S.gami.liftMasterySeeded=true;
+  }
   if (!S.gami.weekChallenge)   S.gami.weekChallenge = null; /* Wochen-Challenge */
   if (S.gami.challengeStreak==null) S.gami.challengeStreak = 0;
   if (!S.gami.habits)          S.gami.habits = DEFAULT_HABITS.map(h=>({...h,log:[]}));
