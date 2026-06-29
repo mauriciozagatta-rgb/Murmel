@@ -68,6 +68,11 @@ button{font:inherit; color:var(--txt); border:none; cursor:pointer; background:t
 .check{width:52px; height:52px; border-radius:13px; border:1px solid var(--line);
   font-size:18px; color:var(--dim); flex:none;}
 .check.on{background:var(--accA); color:var(--acc); border-color:var(--accB);}
+.plankbtn{font-weight:700; font-size:15px;}
+.setdel{flex:none; width:32px; min-height:40px; border-radius:10px; border:1px solid var(--line);
+  background:transparent; color:var(--dim); font-size:13px; font-weight:600;}
+.setdel:active{background:rgba(255,69,58,.12); border-color:rgba(255,69,58,.4); color:#FF7A70;}
+#csvDrop.drag-over{border-color:var(--legs)!important; background:rgba(48,209,88,.06);}
 input[type=text],input[type=date],input[type=number],select,textarea{
   font:inherit; color:var(--txt); background:rgba(255,255,255,.03); border:1px solid var(--line);
   border-radius:12px; padding:12px; width:100%; min-height:48px;}
@@ -277,9 +282,9 @@ svg{max-width:100%;}
 <body>
 <div id="app"></div>
 <div id="timer"><div class="row">
-  <div class="grow"><div class="lbl">Pause</div><div class="tnum" id="tleft">90</div></div>
-  <button class="btn" onclick="timerAdjust(-15)">−15s</button>
-  <button class="btn" onclick="timerAdjust(15)">+15s</button>
+  <div class="grow"><div class="lbl" id="tlabel">Pause</div><div class="tnum" id="tleft">90</div></div>
+  <button class="btn" id="tminus" onclick="timerAdjust(-15)">−15s</button>
+  <button class="btn" id="tplus" onclick="timerAdjust(15)">+15s</button>
   <button class="btn accent t-pull" onclick="timerStop(false)">Weiter</button>
 </div><div id="tbar"><div id="tfill"></div></div></div>
 <div id="tabs">
@@ -971,6 +976,8 @@ function toast(msg){
 
 /* ================= REST TIMER (Zeitstempel-basiert, hintergrund-sicher) ================= */
 let tEnd=0, tTotal=90, tInt=null;
+let tMode="rest";        /* "rest" | "plankPrep" | "plank" */
+let tPlankTarget=0, tPlankEi=null, tPlankSi=null;
 let audioCtx=null;
 function ensureAudio(){
   try{
@@ -980,25 +987,92 @@ function ensureAudio(){
 }
 function timerStart(exId){
   const ex = exId ? S.exercises[exId] : null;
+  tMode="rest";
+  $("tlabel").textContent="Pause";
+  $("tminus").style.display=""; $("tplus").style.display="";
   tTotal = (ex && ex.restSeconds) ? ex.restSeconds : S.settings.restSeconds;
   tEnd = Date.now() + tTotal*1000;
   $("timer").classList.add("show"); tick();
   clearInterval(tInt); tInt = setInterval(tick, 250);
 }
+/* v4.1: Plank-Timer — 5s Vorbereitung, dann Countdown zur Zielzeit. Audio/Vibration an Übergängen. */
+const PLANK_PREP=5;
+function plankStart(ei,si,targetSec){
+  ensureAudio();
+  tMode="plankPrep"; tPlankTarget=targetSec; tPlankEi=ei; tPlankSi=si;
+  tTotal=PLANK_PREP; tEnd=Date.now()+PLANK_PREP*1000;
+  $("tlabel").textContent="In Position… 🧱";
+  $("tminus").style.display="none"; $("tplus").style.display="none";
+  $("timer").classList.add("show");
+  if(S.settings.vibration && navigator.vibrate) navigator.vibrate(20);
+  tick(); clearInterval(tInt); tInt=setInterval(tick,250);
+}
 function tick(){
   const left = Math.max(0, Math.ceil((tEnd - Date.now())/1000));
+  if(tMode==="plankPrep"){
+    $("tleft").textContent = left>0?left:"LOS!";
+    $("tfill").style.width = Math.max(0,(left/tTotal)*100)+"%";
+    /* Countdown-Pieps in den letzten 3 Sekunden */
+    if(left<=3 && left>0 && left!==tick._lastPrep){ tick._lastPrep=left; if(S.settings.sound) tickBeep(660); if(S.settings.vibration&&navigator.vibrate) navigator.vibrate(15); }
+    if(left<=0){ tick._lastPrep=null; plankBegin(); }
+    return;
+  }
+  if(tMode==="plank"){
+    $("tleft").textContent = left+"s";
+    $("tfill").style.width = Math.max(0,(left/tTotal)*100)+"%";
+    $("tlabel").textContent = "Plank halten 🧱 · Ziel "+tPlankTarget+"s";
+    if(left<=3 && left>0 && left!==tick._lastPlank){ tick._lastPlank=left; if(S.settings.sound) tickBeep(770); if(S.settings.vibration&&navigator.vibrate) navigator.vibrate(20); }
+    if(left<=0){ tick._lastPlank=null; plankDone(); }
+    return;
+  }
+  /* rest mode */
   $("tleft").textContent = left+"s";
   $("tfill").style.width = Math.max(0,(left/tTotal)*100)+"%";
   if (left<=0) timerStop(true);
 }
+function plankBegin(){
+  tMode="plank";
+  tTotal=tPlankTarget; tEnd=Date.now()+tPlankTarget*1000;
+  if(S.settings.sound) beep();           /* Start-Signal */
+  if(S.settings.vibration&&navigator.vibrate) navigator.vibrate([60,40,60]);
+  tick();
+}
+function plankDone(){
+  clearInterval(tInt); $("timer").classList.remove("show");
+  if(S.settings.vibration && navigator.vibrate) navigator.vibrate([200,80,200,80,200]);
+  if(S.settings.sound) beepRankUp();
+  /* Zielzeit in den Satz übernehmen + abhaken */
+  try{
+    if(tPlankEi!=null && tPlankSi!=null && S.draft){
+      const st=S.draft.entries[tPlankEi]?.sets[tPlankSi];
+      if(st){ st.seconds=tPlankTarget; st.done=true; save(); }
+    }
+  }catch(e){}
+  toast("Plank geschafft! 🧱 "+tPlankTarget+"s gehalten");
+  tMode="rest"; tPlankEi=null; tPlankSi=null;
+  render();
+}
 function timerAdjust(d){ tEnd = Math.max(Date.now(), tEnd + d*1000); tTotal = Math.max(tTotal, Math.ceil((tEnd-Date.now())/1000)); tick(); }
 function timerStop(finished){
   clearInterval(tInt); $("timer").classList.remove("show");
-  if (finished){
+  const wasPlank = tMode==="plank"||tMode==="plankPrep";
+  tMode="rest";
+  if (finished && !wasPlank){
     if (S.settings.vibration && navigator.vibrate) navigator.vibrate([200,100,200]);
     if (S.settings.sound) beep();
     toast("Pause vorbei – nächster Satz");
   }
+}
+/* kurzer Tick-Ton für Countdown */
+function tickBeep(freq){
+  try{
+    ensureAudio(); if(!audioCtx) return;
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.frequency.value=freq||660; o.type="sine"; o.connect(g); g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(.3, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime+.1);
+    o.start(audioCtx.currentTime); o.stop(audioCtx.currentTime+.11);
+  }catch(e){}
 }
 function beep(){
   try{
@@ -1129,6 +1203,15 @@ function vHome(){
   const _wcMult = challengeMultiplier();
   const _forecast = trainingForecast();
   const _deloadSuggested = checkSmartDeload();
+  /* v4.1: Coach-Insights */
+  const _multiPlateau = multiPlateauInfo();
+  const _weakAcc = weakPointAccessory();
+  const _volWarns = volumeWarnings();
+  const _repJumps = repQualityJumps();
+  /* v4.1: Habit & Consistency */
+  const _nudge = morningNudge(due);
+  const _rescue = streakRescue();
+  const _monthRecap = monthlyRecap(g);
 
   /* Greeting */
   const now = new Date();
@@ -1147,12 +1230,12 @@ function vHome(){
     return `<div class="week-dot ${cls}">${hasSess?"✓":label}</div>`;
   }).join("");
 
-  /* Recovery hint from Ultrahuman data */
+  /* Recovery hint from Ultrahuman data — v4.1: mit Intensitäts-Empfehlung */
   const todayMetric = S.bodyweight.metrics.find(m=>m.date===todayStr());
   const yestMetric = S.bodyweight.metrics.find(m=>m.date===addDays(todayStr(),-1));
   const recMetric = todayMetric||yestMetric;
   const recHint = recMetric?.recoveryScore!=null
-    ? `<div class="recovery-pill">⚡ Recovery ${recMetric.recoveryScore}${recMetric.hrv!=null?" · HRV "+recMetric.hrv:""} — ${recMetric.recoveryScore>=80?"Guter Tag für "+TYPES[due].label:recMetric.recoveryScore>=60?"Moderates Training ok":"Leichter Tag empfohlen"}</div>`
+    ? `<div class="recovery-pill">⚡ Recovery ${recMetric.recoveryScore}${recMetric.hrv!=null?" · HRV "+recMetric.hrv:""} — ${recMetric.recoveryScore>=80?"Voll angreifen 💪 "+TYPES[due].label+" mit allen Sätzen":recMetric.recoveryScore>=60?"Solide trainieren · normale Satzzahl":"Leichter Tag 😴 1 Satz weniger pro Übung, Technik im Fokus"}</div>`
     : "";
 
   /* BW delta */
@@ -1179,6 +1262,24 @@ function vHome(){
     <div class="week-dots">${weekDots}</div>
     ${recHint}
   </div>
+  ${_nudge?`<div class="card ${TYPES[_nudge.due].cls}" style="border-color:var(--accB)"><div class="row"><div class="grow"><b>☀️ Guten Morgen!</b><div class="mut" style="margin-top:2px">${_nudge.strong?"Heute ist normalerweise dein":"Heute könnte ein guter Tag für"} ${TYPES[_nudge.due].label}-Tag.</div></div><button class="btn accent ${TYPES[_nudge.due].cls}" onclick="startSession('${_nudge.due}')">Los</button></div></div>`:""}
+  ${_monthRecap?`<div class="card" style="border-color:var(--gold)"><div class="lbl" style="color:var(--gold)">📊 ${_monthRecap.monthName} ${_monthRecap.year} — Rückblick</div>
+    <div class="row" style="gap:14px;margin-top:10px">
+      <div><b class="num" style="font-size:20px">${_monthRecap.sessions}</b><div class="mut" style="font-size:11px">Sessions</div></div>
+      <div><b class="num" style="font-size:20px">${fmt(_monthRecap.tonnage)}</b><div class="mut" style="font-size:11px">kg Tonnage</div></div>
+      <div><b class="num" style="font-size:20px;color:var(--gold)">${_monthRecap.prs}</b><div class="mut" style="font-size:11px">PRs</div></div>
+      <div><b class="num" style="font-size:20px;color:var(--legs)">${_monthRecap.rankUps}</b><div class="mut" style="font-size:11px">Rang-Ups</div></div>
+    </div></div>`:""}
+  ${(()=>{
+    const dt=new Date(todayStr()+"T12:00:00");
+    if(dt.getMonth()===11 && dt.getDate()>=24){
+      const yr=dt.getFullYear();
+      const cnt=S.sessions.filter(s=>s.date.startsWith(yr+"-")).length;
+      if(cnt>=3) return `<div class="card" style="background:linear-gradient(135deg,rgba(155,93,229,.14),rgba(232,197,71,.1));border-color:rgba(155,93,229,.35)"><div class="row" style="align-items:center"><div class="grow"><b>🎁 Murmel Wrapped ${yr} ist da!</b><div class="mut" style="margin-top:2px">Dein Trainingsjahr in Zahlen — ${cnt} Sessions.</div></div><button class="btn accent" onclick="chartTab='wrapped';wrappedYear=${yr};go('charts')">Ansehen</button></div></div>`;
+    }
+    return "";
+  })()}
+  ${(()=>{ const last=sortedSessions()[0]; return (last && !S.draft) ? `<div class="row" style="justify-content:flex-end;margin:-4px 2px 8px"><button class="btn small ghost" style="min-height:30px;font-size:12px" onclick="go('sessionDetail','${last.id}')">✏️ Letzte Session bearbeiten (${dShort(last.date)})</button></div>` : ""; })()}
   ${backupOverdue()?`<div class="backup"><div class="grow">Lange kein Backup — Daten sichern.</div><button onclick="go('settings')">Sichern</button></div>`:""}
   ${(()=>{ const rc=weekRecap(computeGami()); return rc.show ? `<div class="card t-legs" style="border-color:var(--accB)">
       <div class="lbl">Wochenrückblick · ${rc.label}</div>
@@ -1190,10 +1291,24 @@ function vHome(){
       </div></div>` : ""; })()}
   ${S.draft ? `<div class="card ${TYPES[S.draft.type].cls}" style="border-color:var(--accB)">
       <div class="row"><div class="grow"><b>Laufende ${TYPES[S.draft.type].label}-Session</b><div class="mut">${dLong(S.draft.date)}</div></div>
-      <button class="btn accent" onclick="go('session')">Fortsetzen</button></div></div>` : ""}
+      <button class="btn accent" onclick="go('session')">Fortsetzen</button></div></div>` : todaysPlanCard(due)}
   ${typeCards}
   ${_deloadSuggested?`<div class="backup" style="border-color:var(--hold)"><div class="grow">😴 Murmel empfiehlt eine Deload-Woche — Recovery 3+ Tage niedrig.</div><button onclick="S.gami.deloadActive=true;save();render()">Aktivieren</button></div>`:""}
-  ${_forecast?`<h2>📡 Wochenvorschau</h2><div class="card"><div class="row" style="gap:0;justify-content:space-between">${_forecast.map(f=>`<div style="text-align:center;flex:1"><div style="font-size:20px">${f.icon}</div><div style="font-size:10px;color:var(--mut)">${f.dayName}</div></div>`).join("")}</div></div>`:""}
+  ${(()=>{
+    const insights=[];
+    if(_multiPlateau.length>=3) insights.push(`<div class="hint hold">🔁 <b>${_multiPlateau.length} Übungen stagnieren</b> (${_multiPlateau.slice(0,3).join(", ")}${_multiPlateau.length>3?"…":""}). Eine Deload-Woche könnte den Knoten lösen.</div>`);
+    if(_repJumps.length) insights.push(`<div class="hint up">🚀 <b>Bereit für mehr:</b> ${_repJumps.slice(0,3).map(j=>esc(j.name)+" (+"+fmt(j.inc)+" kg)").join(", ")} — du triffst konstant das obere Rep-Ende.</div>`);
+    if(_weakAcc) insights.push(`<div class="hint">🎯 <b>${_weakAcc.label} hinkt nach.</b> Tipp: ${esc(_weakAcc.ex)} ergänzen — ${_weakAcc.why}.</div>`);
+    const _prRec=prRecoveryInsight();
+    if(_prRec) insights.push(`<div class="hint up">🔬 <b>Muster erkannt:</b> Deine PRs entstehen bei ⌀ ${_prRec.prAvg} Recovery vs. ${_prRec.normAvg} an anderen Tagen — plane schwere Versuche für erholte Tage.</div>`);
+    _volWarns.slice(0,2).forEach(w=>{
+      insights.push(w.type==="low"
+        ? `<div class="hint">📉 <b>${w.name}:</b> nur ${w.sets} Sätze diese Woche (Minimum ${w.limit}). Mehr Volumen für Wachstum.</div>`
+        : `<div class="hint hold">📈 <b>${w.name}:</b> ${w.sets} Sätze — über dem sinnvollen Maximum (${w.limit}). Erholung beachten.</div>`);
+    });
+    return insights.length?`<h2>🧠 Coach-Hinweise</h2><div class="card" style="display:flex;flex-direction:column;gap:8px">${insights.join("")}</div>`:"";
+  })()}
+  ${_forecast?`<h2>📅 Trainings-Vorschau</h2><div class="card"><div class="row" style="gap:0;justify-content:space-between">${_forecast.map(f=>`<div style="text-align:center;flex:1;cursor:pointer" onclick="forecastStart('${f.date}')"><div style="font-size:20px">${f.icon}</div><div style="font-size:10px;color:var(--mut)">${f.dayName}</div></div>`).join("")}</div><p class="mut small" style="margin:8px 2px 0;text-align:center">Basiert auf deinem Trainingsmuster · tippe einen Tag, um die fällige Session vorzubereiten</p></div>`:""}
   <h2>Wochen-Challenge</h2>
   <div class="quest ${_wc.claimed?'done':''}">
     <div class="row"><div class="grow"><b>${_wc.name}</b>${_wc.claimed?' <span class="delta up">✅ erledigt</span>':""}
@@ -1208,6 +1323,7 @@ function vHome(){
       <b class="num" style="font-size:26px; font-weight:700">${bw?fmt(bw.kg):"–"} <span style="font-size:14px; color:var(--mut)">kg</span></b>
       ${bwDeltaHtml}
       <div class="mut num" style="margin-top:4px">Ziel ${fmt(S.bodyweight.goalKg)} kg · noch ${bw?fmt(Math.max(0,bw.kg-S.bodyweight.goalKg)):"–"} kg</div>
+      ${(()=>{ const ra=bwRollingAvg(); return ra?`<div class="mut num" style="margin-top:3px;font-size:12px">⌀ 7-Tage: <b style="color:var(--txt)">${fmt(ra.avg)} kg</b>${ra.trend!=null?` <span class="${ra.trend<-0.02?'delta up':ra.trend>0.02?'delta down':'mut'}" style="font-size:11px">${ra.trend>0?"+":""}${fmt(ra.trend)} kg/Woche</span>`:""}</div>`:""; })()}
     </div></div>
     <div class="row" style="margin-top:12px">
       <input type="text" inputmode="decimal" id="bwIn" placeholder="z.B. 90,4" class="grow" oninput="this.value=this.value.replace(/[^0-9.,]/g,'')">
@@ -1220,6 +1336,48 @@ function addBw(){
   S.bodyweight.log = S.bodyweight.log.filter(e=>e.date!==todayStr());
   S.bodyweight.log.push({date:todayStr(), kg:v});
   save(); render(); toast("Gewicht gespeichert ✓");
+}
+/* v4.1: Heutiger Plan — fällige Session mit Vorschau der Übungen + Vorschlagsgewichten */
+function todaysPlanCard(due){
+  const T=TYPES[due]; const planIds=S.plan[due]||[];
+  if(!planIds.length) return "";
+  const rows=planIds.slice(0,6).map(id=>{
+    const ex=S.exercises[id]; if(!ex) return "";
+    const sg=suggest(id);
+    let valTxt;
+    if(ex.unit==="seconds"){
+      const sec=sg.sets[0]?.seconds||0; valTxt=sec+"s";
+    } else {
+      const kg=sg.sets[0]?.kg||0; const reps=sg.sets[0]?.reps||ex.repMin;
+      valTxt=kg>0?fmt(kg)+" kg × "+reps:"–";
+    }
+    const lm=lmBadgeHtml(id);
+    return `<div class="row" style="padding:7px 0;border-top:1px solid var(--line);font-size:13px">
+      <div class="grow"><b style="font-weight:600">${esc(ex.name)}</b> ${lm}</div>
+      <span class="num mut" style="font-size:12px">${valTxt}</span></div>`;
+  }).join("");
+  return `<div class="card ${T.cls}" style="border-color:var(--accB)">
+    <div class="row" style="align-items:center"><div class="grow">
+      <div class="lbl" style="color:${T.color}">▶ Heute dran</div>
+      <b style="font-size:18px">${T.label}</b>
+      <div class="mut" style="font-size:12px;margin-top:1px">${planIds.length} Übungen · Vorschlagswerte</div>
+    </div>
+    <button class="btn accent ${T.cls}" onclick="startSession('${due}')">Starten</button></div>
+    <div style="margin-top:8px">${rows}</div>
+  </div>`;
+}
+/* Welche PPL-Art ist an einem bestimmten Datum dran? (nächste nach der letzten davor) */
+function dueTypeForDate(date){
+  const order=["push","pull","legs"];
+  const prior=[...S.sessions].filter(s=>s.date<date).sort((a,b)=>a.date<b.date?1:-1)[0];
+  if(!prior) return "push";
+  return order[(order.indexOf(prior.type)+1)%3];
+}
+/* v4.1: Vorschau-Tag antippen → fällige Session starten (Mood-Picker) */
+function forecastStart(date){
+  const t=dueTypeForDate(date);
+  toast(TYPES[t].label+" für "+dShort(date)+" wird vorbereitet");
+  startSession(t);
 }
 
 /* ---------- ACTIVE SESSION ---------- */
@@ -1253,7 +1411,9 @@ function vSession(){
         <div class="setno">${si+1}</div>
         ${sec ? stepper(ei,si,"seconds", st.seconds, "s") : stepper(ei,si,"kg", st.kg, "kg")}
         ${sec ? "" : stepper(ei,si,"reps", st.reps, "Reps")}
+        ${sec ? `<button class="check plankbtn ${st.done?"on":""} ${T.cls}" onclick="plankStart(${ei},${si},${st.seconds||30})" title="Plank-Timer starten">${st.done?"✓":"▶"}</button>` : ""}
         <button class="check ${st.done?"on":""} ${T.cls}" onclick="toggleDone(${ei},${si})">✓</button>
+        ${e.sets.length>1?`<button class="setdel" onclick="removeSet(${ei},${si})" title="Satz löschen">✕</button>`:""}
       </div>`).join("");
     const pl = sec ? {plateau:false,deload:false} : plateauInfo(e.exerciseId);
     const plHint = pl.deload ? `<div class="hint hold">🔁 Plateau: ${pl.sessions}× kein neuer Höchstwert – Deload sinnvoll.</div>`
@@ -1266,7 +1426,8 @@ function vSession(){
         ${sec?'<span class="badge">Sekunden</span>':""}
         ${ex.muscle&&MUSCLES[ex.muscle]?`<span class="badge">${MUSCLES[ex.muscle].name}</span>`:""}
         ${!sec && e.sets[0]?.kg ? weightDeltaHtml(e.exerciseId, e.sets[0].kg) : ""}
-        <div class="mut" style="margin-top:3px">${sec?"+"+ex.increment+"s Progression":"Ziel "+ex.repMin+"–"+ex.repMax+" Reps · Schritt "+fmt(ex.increment)+" kg"}</div>
+        <div class="mut" style="margin-top:3px">${sec?"+"+ex.increment+"s Progression · ▶ startet 5s-Vorlauf, dann Countdown":"Ziel "+ex.repMin+"–"+ex.repMax+" Reps · Schritt "+fmt(ex.increment)+" kg"}</div>
+        ${ex.cue?`<div class="hint" style="margin-top:6px">💡 ${esc(ex.cue)}</div>`:""}
         ${lastDetail?`<details class="lastblock"><summary>Letztes Mal anzeigen ▾</summary><div class="lastdetail">${lastDetail}</div></details>`:""}
       </div>
       <div class="movebtns">
@@ -1402,6 +1563,11 @@ function toggleDone(ei,si){
 function addSet(ei){
   const sets=S.draft.entries[ei].sets;
   sets.push({...sets[sets.length-1], done:false}); save(); render();
+}
+function removeSet(ei,si){
+  const sets=S.draft.entries[ei].sets;
+  if(sets.length<=1){ toast("Mindestens ein Satz nötig"); return; }
+  sets.splice(si,1); save(); render();
 }
 function removeEntry(ei){ S.draft.entries.splice(ei,1); save(); render(); }
 function openAddSheet(){
@@ -1590,16 +1756,189 @@ function delSession(id, btn){
 }
 
 /* ---------- CHARTS ---------- */
-let chartTab="ex", chartEx=null, showE1rm=true;
+let chartTab="ex", chartEx=null, showE1rm=true, wrappedYear=null;
+/* ================= v4.2 #7: MUSKEL-VOLUMEN HEATMAP ================= */
+function vHeatmapTab(){
+  if(!S.sessions.length) return emptyState("Noch keine Daten","Trainiere ein paar Sessions — dann erscheint hier die Volumen-Heatmap.");
+  const order=["chest","back","shoulders","biceps","triceps","quads","hamstrings","core"];
+  /* letzte 8 ISO-Wochen */
+  const weeks=[]; let d=todayStr();
+  for(let i=0;i<8;i++){ weeks.unshift(isoWeek(d)); d=addDays(d,-7); }
+  /* Sätze je Muskel je Woche */
+  const data={}; order.forEach(mu=>data[mu]={});
+  for(const s of S.sessions){
+    if(s.date>todayStr()) continue;
+    const wk=isoWeek(s.date); if(!weeks.includes(wk)) continue;
+    for(const e of s.entries){ const ex=S.exercises[e.exerciseId]; if(!ex) continue;
+      const mu=ex.muscle||"other"; if(!data[mu]) continue;
+      data[mu][wk]=(data[mu][wk]||0)+e.sets.length; }
+  }
+  /* Farbskala relativ zu MAV des Muskels */
+  const cell=(mu,wk)=>{
+    const sets=data[mu][wk]||0; const M=MUSCLES[mu];
+    const ratio=M.mav?Math.min(1.2,sets/M.mav):Math.min(1,sets/12);
+    let bg="var(--card2)";
+    if(sets>0){
+      const intensity=Math.min(1,ratio);
+      /* grün-gelb-rot Verlauf: unter MEV = blass, im Ziel = grün, über MAV = rot */
+      if(M.mev && sets<M.mev) bg=`rgba(139,147,160,${.18+intensity*.3})`;
+      else if(sets>M.mav) bg=`rgba(255,69,58,${.4+Math.min(.4,(sets-M.mav)/M.mav)})`;
+      else bg=`rgba(48,209,88,${.25+intensity*.55})`;
+    }
+    return `<div title="${MUSCLES[mu].name} · KW${wk.slice(-2)} · ${sets} Sätze" style="aspect-ratio:1;border-radius:5px;background:${bg};display:flex;align-items:center;justify-content:center;font-size:9px;color:${sets>0?'#fff':'var(--dim)'};font-weight:600">${sets||""}</div>`;
+  };
+  const grid=order.map(mu=>`
+    <div style="display:grid;grid-template-columns:62px repeat(8,1fr);gap:3px;align-items:center;margin-bottom:3px">
+      <div style="font-size:10px;color:var(--mut);text-align:right;padding-right:4px">${MUSCLES[mu].name}</div>
+      ${weeks.map(wk=>cell(mu,wk)).join("")}
+    </div>`).join("");
+  const header=`<div style="display:grid;grid-template-columns:62px repeat(8,1fr);gap:3px;margin-bottom:6px">
+    <div></div>${weeks.map(wk=>`<div style="font-size:9px;color:var(--dim);text-align:center">${wk.slice(-2)}</div>`).join("")}</div>`;
+  return `<div class="card">
+    <div class="lbl">Volumen-Heatmap · Sätze pro Muskel × Woche (KW)</div>
+    <div style="margin-top:14px;overflow-x:auto">${header}${grid}</div>
+    <div class="row" style="margin-top:12px;gap:12px;flex-wrap:wrap;font-size:11px">
+      <span class="chip"><span class="dot" style="background:rgba(139,147,160,.4)"></span>unter MEV</span>
+      <span class="chip"><span class="dot" style="background:rgba(48,209,88,.7)"></span>im Zielbereich</span>
+      <span class="chip"><span class="dot" style="background:rgba(255,69,58,.7)"></span>über MAV</span>
+    </div>
+    <p class="mut small" style="margin-top:8px">Je intensiver die Farbe, desto mehr Sätze. Rot = über sinnvollem Maximum, blass = unter Minimum für Wachstum.</p>
+  </div>`;
+}
+/* ================= v4.2 #8: RELATIVKRAFT (e1RM ÷ Körpergewicht) ================= */
+function bwOnOrBefore(date){
+  const log=[...S.bodyweight.log].filter(e=>e.date<=date).sort((a,b)=>a.date<b.date?1:-1);
+  return log.length?log[0].kg:(S.bodyweight.log.length?[...S.bodyweight.log].sort((a,b)=>a.date<b.date?-1:1)[0].kg:null);
+}
+function relativeStrength(exId){
+  const ex=S.exercises[exId]; if(!ex||ex.unit==="seconds") return null;
+  const pts=[];
+  for(const s of [...S.sessions].filter(x=>x.date<=todayStr()).sort((a,b)=>a.date<b.date?-1:1)){
+    const e=s.entries.find(x=>x.exerciseId===exId); if(!e||!e.sets.length) continue;
+    const e1=Math.max(...e.sets.map(x=>e1rm(x.kg||0,x.reps||0)));
+    const bw=bwOnOrBefore(s.date); if(!bw) continue;
+    pts.push({date:s.date, v:+(e1/bw).toFixed(2), e1:+e1.toFixed(1), bw});
+  }
+  return pts.length?pts:null;
+}
+function vRelativkraftTab(){
+  if(!S.sessions.length) return emptyState("Noch keine Daten","Trainiere und tracke dein Körpergewicht — dann erscheint hier deine Relativkraft.");
+  if(!S.bodyweight.log.length) return `<div class="card"><div class="lbl">Relativkraft</div><p class="mut" style="margin-top:10px">Trage zuerst dein Körpergewicht ein (Startseite), damit die Relativkraft berechnet werden kann.</p></div>`;
+  const ids=Object.keys(S.exercises).filter(id=>S.exercises[id].unit!=="seconds");
+  /* aktuelle Ratio je Übung, sortiert */
+  const rows=ids.map(id=>{ const rs=relativeStrength(id); if(!rs) return null;
+    const cur=rs[rs.length-1]; const first=rs[0];
+    const trend=rs.length>=2?+(cur.v-first.v).toFixed(2):0;
+    return {id, name:S.exercises[id].name, cur:cur.v, e1:cur.e1, bw:cur.bw, trend};
+  }).filter(Boolean).sort((a,b)=>b.cur-a.cur);
+  if(!rows.length) return `<div class="card"><p class="mut">Keine Daten mit passendem Körpergewicht gefunden.</p></div>`;
+  chartEx = (chartEx && S.exercises[chartEx] && S.exercises[chartEx].unit!=="seconds") ? chartEx : rows[0].id;
+  const rs=relativeStrength(chartEx);
+  const opts=ids.map(id=>`<option value="${id}" ${id===chartEx?"selected":""}>${esc(S.exercises[id].name)}</option>`).join("");
+  const chartHtml = rs ? lineChart([{pts:rs.map(p=>({date:p.date,v:p.v})), color:"var(--gold)", showLabels:true, area:true}], "×BW", null, null) : '<div class="mut">Keine Daten.</div>';
+  const list=rows.map(r=>`<div class="list-item"><div class="grow"><b>${esc(r.name)}</b>
+      <div class="mut num">${fmt(r.e1)} kg e1RM ÷ ${fmt(r.bw)} kg KG</div></div>
+    <div style="text-align:right"><b class="num" style="font-size:17px">${fmt(r.cur)}<span class="mut" style="font-size:11px">×BW</span></b>
+      ${r.trend?`<div class="delta ${r.trend>0?'up':'down'}" style="font-size:11px">${r.trend>0?"+":""}${fmt(r.trend)}</div>`:""}</div></div>`).join("");
+  return `<div class="card"><select onchange="chartEx=this.value;render()">${opts}</select>
+      <div style="margin-top:14px">${chartHtml}</div>
+      <p class="mut small" style="margin:8px 0 0">Relativkraft = geschätztes 1RM geteilt durch dein Körpergewicht an dem Tag. Steigt die Kurve, wirst du stärker im Verhältnis zu deinem Gewicht – das ideale Recomp-Signal, unabhängig von Gewichtsschwankungen.</p></div>
+    <h2>Alle Übungen · aktuelle Relativkraft</h2>
+    <div class="card">${list}</div>`;
+}
+/* ================= v4.2 #13: WRAPPED (Jahres-Rückblick) ================= */
+function vWrappedTab(year){
+  const sess=S.sessions.filter(s=>s.date.startsWith(year+"-") && s.date<=todayStr());
+  const prevYears=[...new Set(S.sessions.map(s=>s.date.slice(0,4)))].sort();
+  const yearSel = prevYears.length>1 ? `<div class="seg" style="margin-bottom:12px">${prevYears.map(y=>`<button class="${String(y)===String(year)?"on":""}" onclick="wrappedYear=${y};render()">${y}</button>`).join("")}</div>` : "";
+  if(sess.length<3) return `${yearSel}<div class="card"><div class="lbl">🎁 Murmel Wrapped ${year}</div><p class="mut" style="margin-top:10px">Noch zu wenige Sessions in ${year} für einen Rückblick (mind. 3 nötig).</p></div>`;
+  /* Kennzahlen */
+  const tonnage=Math.round(sess.reduce((a,s)=>a+sessionVolume(s),0));
+  const totalSets=sess.reduce((a,s)=>a+s.entries.reduce((m,e)=>m+e.sets.length,0),0);
+  const byType={push:0,pull:0,legs:0}; sess.forEach(s=>byType[s.type]=(byType[s.type]||0)+1);
+  const favType=Object.keys(byType).sort((a,b)=>byType[b]-byType[a])[0];
+  /* meistgenutzte Übung */
+  const exCount={}; sess.forEach(s=>s.entries.forEach(e=>{exCount[e.exerciseId]=(exCount[e.exerciseId]||0)+1;}));
+  const favEx=Object.keys(exCount).sort((a,b)=>exCount[b]-exCount[a])[0];
+  /* PRs im Jahr */
+  const g=computeGami();
+  const prCount=g.per.filter(p=>p.date.startsWith(year+"-")).reduce((a,p)=>a+Math.round(p.bd.pr/25),0);
+  /* LM Rang-Ups im Jahr */
+  let rankUps=0; for(const st of Object.values(S.gami.liftMastery||{})){ if(st.ts && new Date(st.ts).getFullYear()===Number(year)) rankUps++; }
+  /* aktiver Monat */
+  const monCount={}; sess.forEach(s=>{ const m=s.date.slice(5,7); monCount[m]=(monCount[m]||0)+1; });
+  const topMon=Object.keys(monCount).sort((a,b)=>monCount[b]-monCount[a])[0];
+  /* längste Wochenserie (Streak) approximiert über Trainingswochen */
+  const trainWeeks=new Set(sess.map(s=>isoWeek(s.date)));
+  /* Körpergewichtsänderung */
+  const bwYear=[...S.bodyweight.log].filter(e=>e.date.startsWith(year+"-")).sort((a,b)=>a.date<b.date?-1:1);
+  const bwDelta = bwYear.length>=2 ? +(bwYear[bwYear.length-1].kg-bwYear[0].kg).toFixed(1) : null;
+  const stat=(big,lbl,col)=>`<div style="text-align:center;padding:14px 8px"><div class="num" style="font-size:30px;font-weight:800;color:${col||'var(--txt)'}">${big}</div><div class="mut" style="font-size:11px;margin-top:2px">${lbl}</div></div>`;
+  return `${yearSel}
+  <div class="card" style="background:linear-gradient(135deg,rgba(155,93,229,.12),rgba(232,197,71,.08));border-color:rgba(155,93,229,.3)">
+    <div style="text-align:center;padding:6px 0 2px">
+      <div style="font-size:32px">🎁</div>
+      <div class="lbl" style="color:var(--gold);margin-top:4px">Murmel Wrapped ${year}</div>
+      <div style="font-size:13px;color:var(--mut);margin-top:2px">Dein Jahr in Eisen</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:10px">
+      ${stat(sess.length,"Sessions","var(--pull)")}
+      ${stat(fmt(tonnage)+" kg","Gesamt-Tonnage","var(--gold)")}
+      ${stat(totalSets,"Sätze gesamt")}
+      ${stat(prCount,"neue PRs","var(--legs)")}
+      ${stat(rankUps,"Rang-Aufstiege","var(--push)")}
+      ${stat(trainWeeks.size,"aktive Wochen")}
+    </div>
+    <div style="margin-top:10px;border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px">
+      <div class="row"><span class="mut grow">Lieblings-Split</span><b>${TYPES[favType]?.label||favType} (${byType[favType]}×)</b></div>
+      <div class="row"><span class="mut grow">Top-Übung</span><b>${favEx?esc(S.exercises[favEx]?.name||favEx):"–"} (${favEx?exCount[favEx]:0}×)</b></div>
+      <div class="row"><span class="mut grow">Aktivster Monat</span><b>${topMon?MONTHS[Number(topMon)-1]:"–"} (${topMon?monCount[topMon]:0} Sessions)</b></div>
+      ${bwDelta!=null?`<div class="row"><span class="mut grow">Körpergewicht</span><b class="${bwDelta<0?'delta up':bwDelta>0?'delta down':''}">${bwDelta>0?"+":""}${fmt(bwDelta)} kg</b></div>`:""}
+    </div>
+    <button class="btn full accent" style="margin-top:14px" onclick="shareWrapped(${year})">📤 Wrapped teilen</button>
+  </div>
+  <p class="mut small" style="text-align:center;margin-top:10px">Murmel erinnert sich an alles. 🐹</p>`;
+}
+/* Wrapped als PNG exportieren */
+async function shareWrapped(year){
+  try{
+    const sess=S.sessions.filter(s=>s.date.startsWith(year+"-")&&s.date<=todayStr());
+    const tonnage=Math.round(sess.reduce((a,s)=>a+sessionVolume(s),0));
+    const g=computeGami();
+    const prCount=g.per.filter(p=>p.date.startsWith(year+"-")).reduce((a,p)=>a+Math.round(p.bd.pr/25),0);
+    let rankUps=0; for(const st of Object.values(S.gami.liftMastery||{})){ if(st.ts&&new Date(st.ts).getFullYear()===Number(year)) rankUps++; }
+    const W=600,H=800,c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
+    const grad=x.createLinearGradient(0,0,W,H);grad.addColorStop(0,"#1a1030");grad.addColorStop(1,"#0D0F12");
+    x.fillStyle=grad;x.fillRect(0,0,W,H);
+    x.strokeStyle="#9b5de5";x.lineWidth=6;x.strokeRect(20,20,W-40,H-40);
+    x.textAlign="center";
+    x.font="64px -apple-system,sans-serif";x.fillText("🎁",W/2,110);
+    x.fillStyle="#E8C547";x.font="800 40px -apple-system,sans-serif";x.fillText("MURMEL WRAPPED",W/2,170);
+    x.fillStyle="#EDEFF2";x.font="700 56px -apple-system,sans-serif";x.fillText(String(year),W/2,235);
+    const big=(val,lbl,y,col)=>{x.fillStyle=col;x.font="800 52px -apple-system,sans-serif";x.fillText(val,W/2,y);x.fillStyle="#8B93A0";x.font="400 22px -apple-system,sans-serif";x.fillText(lbl,W/2,y+34);};
+    big(String(sess.length),"Sessions",340,"#0A84FF");
+    big(fmt(tonnage)+" kg","Gesamt-Tonnage",450,"#E8C547");
+    big(String(prCount),"neue PRs",560,"#30D158");
+    big(String(rankUps),"Rang-Aufstiege",670,"#9b5de5");
+    x.fillStyle="#4E5560";x.font="400 20px -apple-system,sans-serif";x.fillText("Murmel PPL Tracker 🐹",W/2,H-50);
+    const blob=await new Promise(res=>c.toBlob(res,"image/png"));
+    const file=new File([blob],"murmel-wrapped-"+year+".png",{type:"image/png"});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:"Murmel Wrapped "+year}); }
+    else{ const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="murmel-wrapped-"+year+".png";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast("Wrapped heruntergeladen 📥"); }
+  }catch(e){ toast("Teilen nicht möglich"); }
+}
 function vCharts(){
   chartEx = chartEx || "flachbank";
   const seg = `<div class="seg">
     <button class="${chartTab==="ex"?"on":""}" onclick="chartTab='ex';render()">Übungen</button>
     <button class="${chartTab==="vol"?"on":""}" onclick="chartTab='vol';render()">Volumen</button>
     <button class="${chartTab==="mus"?"on":""}" onclick="chartTab='mus';render()">Muskeln</button>
+    <button class="${chartTab==="heat"?"on":""}" onclick="chartTab='heat';render()">Heatmap</button>
+    <button class="${chartTab==="relk"?"on":""}" onclick="chartTab='relk';render()">Relativkraft</button>
     <button class="${chartTab==="bw"?"on":""}" onclick="chartTab='bw';render()">Körper</button>
     <button class="${chartTab==="duel"?"on":""}" onclick="chartTab='duel';render()">Duell</button>
-    <button class="${chartTab==="body"?"on":""}" onclick="chartTab='body';render()">Silhouette</button></div>`;
+    <button class="${chartTab==="body"?"on":""}" onclick="chartTab='body';render()">Silhouette</button>
+    <button class="${chartTab==="wrapped"?"on":""}" onclick="chartTab='wrapped';render()">Wrapped</button></div>`;
   let body="";
   if (chartTab==="ex"){
     if(!S.sessions.length){ body=emptyState("Noch keine Daten","Trainiere ein paar Sessions — dann erscheinen hier deine Fortschrittskurven."); }
@@ -1758,6 +2097,15 @@ function vCharts(){
   }
   if (chartTab==="duel"){
     body=`<h2>Übungs-Duell</h2><div class="card">${duelExHtml()}</div>`;
+  }
+  if (chartTab==="heat"){
+    body = vHeatmapTab();
+  }
+  if (chartTab==="relk"){
+    body = vRelativkraftTab();
+  }
+  if (chartTab==="wrapped"){
+    body = vWrappedTab(wrappedYear || new Date(todayStr()+"T12:00:00").getFullYear());
   }
   if (chartTab==="body"){
     body=`<h2>Körper-Silhouette</h2><p class="sub" style="margin-top:-8px">Trainierte Muskelgruppen der letzten 7 Tage</p>
@@ -2377,6 +2725,48 @@ function weekRecap(g){
   return {show:(dow===0||dow===1), label, sessions:ps.length,
     pts:ps.reduce((a,p)=>a+p.pts,0), prs:Math.round(ps.reduce((a,p)=>a+p.bd.pr/25,0)), goal:S.settings.weeklyGoal};
 }
+/* v4.1 #15: Streak-Rettung — 1 Session unter Wochenziel & noch Tage übrig → Make-up-Hinweis */
+function streakRescue(){
+  const goal=S.settings.weeklyGoal;
+  const wb=weekBounds(todayStr());
+  const doneThisWeek=S.sessions.filter(s=>s.date>=wb.mon&&s.date<=wb.sun&&s.date<=todayStr()).length;
+  const dow=new Date(todayStr()+"T12:00:00").getDay();
+  const daysLeft = dow===0?0:(7-((dow+6)%7)-1);
+  const missing=goal-doneThisWeek;
+  if(missing===1 && daysLeft>=0 && doneThisWeek>0){
+    const st=streakInfo();
+    if(st.streak>=1) return {missing, daysLeft, streak:st.streak};
+  }
+  return null;
+}
+/* v4.1 #16: Morgen-Nudge — heute üblicher Trainingstag? */
+function morningNudge(due){
+  if(S.sessions.length<10) return null;
+  const hour=new Date().getHours();
+  if(hour>=14) return null;
+  const dow=new Date(todayStr()+"T12:00:00").getDay();
+  const counts={}; let total=0;
+  for(const s of S.sessions){ const d=new Date(s.date+"T12:00:00").getDay(); counts[d]=(counts[d]||0)+1; total++; }
+  const todayShare=(counts[dow]||0)/Math.max(1,total);
+  const trainedToday=S.sessions.some(s=>s.date===todayStr());
+  if(trainedToday||S.draft) return null;
+  if(todayShare>=0.12) return {due, strong:todayShare>=0.2};
+  return null;
+}
+/* v4.1 #17: Monats-Rückblick — Stats des Vormonats (am Monatsanfang) */
+function monthlyRecap(g){
+  const dom=new Date(todayStr()+"T12:00:00").getDate();
+  if(dom>5) return null;
+  const d=new Date(todayStr()+"T12:00:00"); d.setDate(1); d.setMonth(d.getMonth()-1);
+  const ym=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+  const sess=S.sessions.filter(s=>s.date.startsWith(ym));
+  if(sess.length<3) return null;
+  const tonnage=sess.reduce((a,s)=>a+sessionVolume(s),0);
+  const prs=g.per.filter(p=>p.date.startsWith(ym)).reduce((a,p)=>a+Math.round(p.bd.pr/25),0);
+  let rankUps=0;
+  for(const st of Object.values(S.gami.liftMastery||{})){ if(st.ts && new Date(st.ts).toISOString().startsWith(ym)) rankUps++; }
+  return {ym, monthName:MONTHS[d.getMonth()], year:d.getFullYear(), sessions:sess.length, tonnage:Math.round(tonnage), prs, rankUps};
+}
 function skinsUnlocked(g=computeGami()){
   const ach=achievementsList(g); const has=k=>{const a=ach.find(x=>x.key===k);return a&&a.un;};
   const owned=(S.gami&&S.gami.owned)||{};
@@ -2809,6 +3199,56 @@ function computeLiftMastery(){
   }
   return out;
 }
+/* v4.1: Sessions bis zum nächsten LM-Rang projizieren (lineare Steigung der letzten Metric-Werte) */
+function lmProjection(exId){
+  const ex=S.exercises[exId]; if(!ex) return null;
+  const ser=[];
+  for(const s of [...S.sessions].filter(x=>x.date<=todayStr()).sort((a,b)=>a.date<b.date?-1:1)){
+    const e=s.entries.find(x=>x.exerciseId===exId); if(!e||!e.sets.length) continue;
+    const v=ex.unit==="seconds"?Math.max(...e.sets.map(x=>x.seconds||0)):Math.max(...e.sets.map(x=>e1rm(x.kg||0,x.reps||0)));
+    ser.push(+v.toFixed(1));
+  }
+  if(ser.length<3) return null;
+  const cur=lmRankFor(exId, lmBestMetric(exId));
+  if(!cur.nextThr) return {maxed:true};
+  const recent=ser.slice(-6); const n=recent.length;
+  const xm=(n-1)/2, ym=recent.reduce((a,v)=>a+v,0)/n;
+  let num=0,den=0;
+  recent.forEach((v,i)=>{ num+=(i-xm)*(v-ym); den+=(i-xm)**2; });
+  const slope=den>1e-6?num/den:0;
+  if(slope<=0.01) return {stalled:true, next:cur.next};
+  const gap=cur.nextThr-cur.metric;
+  const sessions=Math.max(1,Math.ceil(gap/slope));
+  return {sessions, next:cur.next, slope:+slope.toFixed(1), gap:+gap.toFixed(1)};
+}
+/* v4.1: An welchem Datum wurde ein LM-Rang erstmals erreicht? + Sessions seit erstem Logging */
+function lmRankHistory(exId){
+  const ex=S.exercises[exId]; if(!ex) return null;
+  const thr=lmThresholds(exId);
+  const sorted=[...S.sessions].filter(x=>x.date<=todayStr()).sort((a,b)=>a.date<b.date?-1:1);
+  let firstDate=null, sessCount=0; const rankDates={};
+  let runningBest=0;
+  for(const s of sorted){
+    const e=s.entries.find(x=>x.exerciseId===exId); if(!e||!e.sets.length) continue;
+    if(!firstDate) firstDate=s.date;
+    sessCount++;
+    const v=ex.unit==="seconds"?Math.max(...e.sets.map(x=>x.seconds||0)):Math.max(...e.sets.map(x=>e1rm(x.kg||0,x.reps||0)));
+    if(v>runningBest){
+      runningBest=v;
+      for(let i=0;i<thr.length;i++){ if(v>=thr[i] && !rankDates[i]) rankDates[i]={date:s.date, sessionsIn:sessCount}; }
+    }
+  }
+  return {firstDate, sessCount, rankDates};
+}
+/* v4.1: Pace-Vergleich — welche Übung hat einen Rang schneller erreicht? */
+function lmPaceCompare(targetRankIdx){
+  const out=[];
+  for(const id of Object.keys(computeLiftMastery())){
+    const h=lmRankHistory(id);
+    if(h && h.rankDates[targetRankIdx]) out.push({exId:id, name:S.exercises[id].name, sessionsIn:h.rankDates[targetRankIdx].sessionsIn, date:h.rankDates[targetRankIdx].date});
+  }
+  return out.sort((a,b)=>a.sessionsIn-b.sessionsIn);
+}
 /* Prüfe nach jeder Session ob neue Ränge erreicht wurden → Toast + Trophy */
 function checkLiftMasteryRankUps(){
   const map=computeLiftMastery();
@@ -2923,6 +3363,10 @@ function vLiftMastery(){
     const decayed=lmDecayLevel(id)>0;
     const decayHint=decayed?`<div style="font-size:10px;color:#FF8A82;margin-top:2px">💢 21+ Tage nicht trainiert</div>`:"";
     const cardStyle=decayed?`opacity:.72;border-style:dashed;`:"";
+    /* v4.1: Rang-Projektion */
+    const proj=lmProjection(id);
+    const projHint = (proj && proj.sessions) ? `<div class="mut" style="font-size:9px;margin-top:1px;color:${rk.color}">📈 ~${proj.sessions} Sessions → ${proj.next.name}</div>`
+      : (proj && proj.stalled) ? `<div class="mut" style="font-size:9px;margin-top:1px">⏸ stagniert</div>` : "";
     return `<div class="lm-card ${rk.key}" style="${cardStyle}">
       ${isNew&&rk.idx>0?`<div class="lm-new">NEU</div>`:""}
       <div class="lm-badge" style="color:${rk.color};border-color:${rk.color}">${icon} ${rk.name}</div>
@@ -2930,14 +3374,82 @@ function vLiftMastery(){
       <div class="lm-val">${isTime?rk.metric+"s":fmt(rk.metric)+" kg e1RM"}</div>
       <div class="lm-bar"><div class="lm-fill" style="width:${pct.toFixed(0)}%;background:${rk.color}"></div></div>
       <div class="mut" style="font-size:10px;margin-top:2px">${rk.nextThr?`→ ${rk.next.name} ab ${isTime?rk.nextThr+"s":fmt(rk.nextThr)+" kg"}`:"MAX ✨"}</div>
+      ${projHint}
       ${decayHint}
     </div>`;
   }).join("");
   const olympians=sorted.filter(id=>map[id].key==="olympian").length;
+  /* v4.1: Pace-Vergleich gegen dein altes Ich — schnellste Übung zum aktuellen Signature-Rang */
+  let paceHtml="";
+  if(sig){
+    const pace=lmPaceCompare(sig.rk.idx).filter(p=>p.sessionsIn);
+    if(pace.length>=2){
+      const fastest=pace[0], slowest=pace[pace.length-1];
+      if(fastest.exId!==slowest.exId && sig.rk.idx>0){
+        paceHtml=`<div class="card" style="margin-top:10px;padding:12px 14px">
+          <div class="lbl">⚡ Dein Tempo</div>
+          <div style="font-size:13px;margin-top:6px;line-height:1.5">Du hast <b>${esc(fastest.name)}</b> in nur <b>${fastest.sessionsIn}</b> Sessions auf ${sig.rk.name} gebracht — <b>${esc(slowest.name)}</b> brauchte ${slowest.sessionsIn}.</div>
+        </div>`;
+      }
+    }
+  }
   return `${sigCard}<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
     <div class="mut" style="font-size:12px">${exIds.length} Übungen · ${olympians} Olympians</div>
+    ${sig?`<button class="btn small" style="min-height:32px;padding:0 12px" onclick="shareLiftCard('${sig.exId}')">📤 Karte teilen</button>`:""}
   </div>
-  <div class="lm-grid">${cards}</div>`;
+  <div class="lm-grid">${cards}</div>
+  ${paceHtml}`;
+}
+/* v4.1: Lift-Mastery-Karte als PNG rendern (Canvas) und teilen/herunterladen */
+async function shareLiftCard(exId){
+  try{
+    const map=computeLiftMastery(); const rk=map[exId]; const ex=S.exercises[exId];
+    if(!rk||!ex){ toast("Keine Daten"); return; }
+    const W=600,H=800, c=document.createElement("canvas"); c.width=W; c.height=H;
+    const x=c.getContext("2d");
+    /* Hintergrund-Verlauf */
+    const grad=x.createLinearGradient(0,0,W,H);
+    grad.addColorStop(0,"#0D0F12"); grad.addColorStop(1,"#14171B");
+    x.fillStyle=grad; x.fillRect(0,0,W,H);
+    /* Rahmen in Rangfarbe */
+    x.strokeStyle=rk.color; x.lineWidth=6; x.strokeRect(20,20,W-40,H-40);
+    /* Titel */
+    x.fillStyle="#8B93A0"; x.font="600 22px -apple-system,sans-serif"; x.textAlign="center";
+    x.fillText("MURMEL · LIFT MASTERY", W/2, 90);
+    /* Rang-Icon (Emoji) */
+    x.font="120px -apple-system,sans-serif"; x.fillText(lmSeasonIcon(rk.key), W/2, 250);
+    /* Rang-Name */
+    x.fillStyle=rk.color; x.font="800 56px -apple-system,sans-serif"; x.fillText(rk.name, W/2, 340);
+    /* Übungsname */
+    x.fillStyle="#EDEFF2"; x.font="700 36px -apple-system,sans-serif"; x.fillText(ex.name, W/2, 420);
+    /* Wert */
+    const valTxt=ex.unit==="seconds"?rk.metric+"s":fmt(rk.metric)+" kg e1RM";
+    x.fillStyle="#8B93A0"; x.font="400 28px ui-monospace,monospace"; x.fillText(valTxt, W/2, 470);
+    /* Fortschritt zum nächsten */
+    if(rk.nextThr){
+      const pct=Math.min(1,(rk.metric-rk.curThr)/(rk.nextThr-rk.curThr));
+      x.fillStyle="#23262B"; x.fillRect(80,540,W-160,18);
+      x.fillStyle=rk.color; x.fillRect(80,540,(W-160)*pct,18);
+      x.fillStyle="#4E5560"; x.font="400 20px -apple-system,sans-serif";
+      x.fillText(`→ ${rk.next.name}`, W/2, 600);
+    } else {
+      x.fillStyle=rk.color; x.font="700 26px -apple-system,sans-serif"; x.fillText("✨ MAX RANK ✨", W/2, 590);
+    }
+    /* Footer */
+    x.fillStyle="#4E5560"; x.font="400 20px -apple-system,sans-serif";
+    x.fillText("Murmel PPL Tracker · "+dLong(todayStr()), W/2, H-60);
+    /* Export */
+    const blob=await new Promise(res=>c.toBlob(res,"image/png"));
+    const file=new File([blob],"murmel-"+exId+".png",{type:"image/png"});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:"Murmel Lift Mastery"});
+    } else {
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a"); a.href=url; a.download="murmel-"+exId+".png"; a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+      toast("Karte heruntergeladen 📥");
+    }
+  }catch(e){ toast("Teilen nicht möglich"); }
 }
 
 function vMarble(){
@@ -3610,6 +4122,89 @@ function checkSmartDeload(){
   const allLow=metrics.length>=3&&metrics.every(m=>m.recoveryScore!=null&&m.recoveryScore<60);
   return allLow&&!S.gami.deloadActive;
 }
+/* v4.1 #8: Mehrere Übungen gleichzeitig im Plateau → globaler Deload-Hinweis */
+function multiPlateauInfo(){
+  const stalled=[];
+  for(const id of Object.keys(S.exercises)){
+    const ex=S.exercises[id]; if(ex.unit==="seconds") continue;
+    const pl=plateauInfo(id);
+    if(pl.plateau) stalled.push(S.exercises[id].name);
+  }
+  return stalled;
+}
+/* v4.1 #9: Accessory-Vorschlag für schwächste Kategorie */
+const ACCESSORY_SUGGESTIONS = {
+  push:  {ex:"Enge Liegestütze",  why:"baut Trizeps-Lockout-Kraft für Bankdrücken"},
+  pull:  {ex:"Face Pulls",        why:"stärkt hintere Schulter & verbessert Zugkraft"},
+  legs:  {ex:"Bulgarian Split Squat", why:"behebt einseitige Schwächen und Stabilität"},
+};
+function weakPointAccessory(){
+  try{
+    const cat=lmWeakestCategory(); if(!cat) return null;
+    const sug=ACCESSORY_SUGGESTIONS[cat.type]; if(!sug) return null;
+    return {type:cat.type, label:{push:"Push",pull:"Pull",legs:"Legs"}[cat.type], ...sug};
+  }catch(e){ return null; }
+}
+/* v4.1 #10: Wochenvolumen je Muskel vs. MEV/MAV → Warnungen */
+function volumeWarnings(){
+  const wk=isoWeek(todayStr());
+  const sm=setsByMuscleForWeek(wk);
+  const warns=[];
+  for(const [mu,M] of Object.entries(MUSCLES)){
+    if(mu==="other"||mu==="core") continue;
+    const sets=sm[mu]||0;
+    if(M.mev>0 && sets>0 && sets<M.mev) warns.push({mu, name:M.name, sets, type:"low", limit:M.mev});
+    else if(sets>M.mav) warns.push({mu, name:M.name, sets, type:"high", limit:M.mav});
+  }
+  return warns;
+}
+/* v4.1 #11: Übungen, die konstant das obere Rep-Ende treffen → Gewichtssprung vorschlagen */
+function repQualityJumps(){
+  const out=[];
+  for(const id of Object.keys(S.exercises)){
+    const ex=S.exercises[id]; if(ex.unit==="seconds") continue;
+    const last=lastEntryFor(id); if(!last) continue;
+    const allMax=last.entry.sets.length>=2 && last.entry.sets.every(s=>(s.reps||0)>=ex.repMax);
+    if(allMax) out.push({name:ex.name, kg:last.entry.sets[last.entry.sets.length-1].kg||0, inc:ex.increment});
+  }
+  return out;
+}
+/* v4.1 #13: 7-Tage gleitender Durchschnitt des Körpergewichts */
+function bwRollingAvg(){
+  const log=[...S.bodyweight.log].sort((a,b)=>a.date<b.date?-1:1);
+  if(log.length<2) return null;
+  const last=log[log.length-1].date;
+  const cutoff=addDays(last,-6);
+  const window=log.filter(e=>e.date>=cutoff);
+  if(!window.length) return null;
+  const avg=window.reduce((a,e)=>a+e.kg,0)/window.length;
+  const prevCut=addDays(last,-13), prevEnd=addDays(last,-7);
+  const prevWin=log.filter(e=>e.date>=prevCut&&e.date<=prevEnd);
+  const prevAvg=prevWin.length?prevWin.reduce((a,e)=>a+e.kg,0)/prevWin.length:null;
+  return {avg:+avg.toFixed(2), n:window.length, trend:prevAvg!=null?+(avg-prevAvg).toFixed(2):null};
+}
+/* v4.1 #14: Korrelation — Recovery an PR-Tagen vs. normalen Tagen */
+function prRecoveryInsight(){
+  const metricByDate={}; for(const m of S.bodyweight.metrics){ if(m.recoveryScore!=null) metricByDate[m.date]=m.recoveryScore; }
+  if(Object.keys(metricByDate).length<5) return null;
+  const prDates=new Set();
+  for(const id of Object.keys(S.exercises)){
+    const ex=S.exercises[id]; let best=0;
+    for(const s of [...S.sessions].filter(x=>x.date<=todayStr()).sort((a,b)=>a.date<b.date?-1:1)){
+      const e=s.entries.find(x=>x.exerciseId===id); if(!e||!e.sets.length) continue;
+      const v=ex.unit==="seconds"?Math.max(...e.sets.map(x=>x.seconds||0)):Math.max(...e.sets.map(x=>e1rm(x.kg||0,x.reps||0)));
+      if(v>best){ best=v; prDates.add(s.date); }
+    }
+  }
+  const prRec=[], normRec=[];
+  for(const [date,rec] of Object.entries(metricByDate)){ (prDates.has(date)?prRec:normRec).push(rec); }
+  if(prRec.length<2||normRec.length<2) return null;
+  const avg=arr=>arr.reduce((a,b)=>a+b,0)/arr.length;
+  const prAvg=avg(prRec), normAvg=avg(normRec);
+  const diff=+(prAvg-normAvg).toFixed(0);
+  if(Math.abs(diff)<3) return null;
+  return {prAvg:Math.round(prAvg), normAvg:Math.round(normAvg), diff};
+}
 
 /* ===== v4.0 WELLE H: LEISTUNGS-WETTERVORHERSAGE ===== */
 function trainingForecast(){
@@ -3627,8 +4222,8 @@ function trainingForecast(){
     const date=addDays(today,i);
     const dayIdx=new Date(date+"T12:00:00").getDay();
     const score=((counts[dayIdx]||0)/maxCount);
-    const icon=score>=0.7?"☀️":score>=0.4?"🌤":"⛅";
-    const label=score>=0.7?"Guter Tag":score>=0.4?"Okay":"Eher Ruhetag";
+    const icon=score>=0.7?"💪":score>=0.4?"👍":"😴";
+    const label=score>=0.7?"Trainingstag":score>=0.4?"Vielleicht":"Ruhetag";
     forecast.push({date,dayName:dayNames[dayIdx],icon,label,score});
   }
   return forecast;
@@ -3879,7 +4474,13 @@ function vSettings(){
   <h2>Körperdaten-Import</h2>
   <p class="sub">RENPHO- oder Ultrahuman-CSV importieren. Format wird automatisch erkannt, Dubletten entfernt, pro Tag die Morgenmessung (früheste Zeit) übernommen.</p>
   <div class="card">
-    <input type="file" id="bodyCsvFile" accept=".csv,text/csv" onchange="handleBodyCsvFile(this)" style="margin-bottom:10px">
+    <div id="csvDrop" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleCsvDrop(event)"
+      style="border:2px dashed var(--lineS);border-radius:14px;padding:20px 16px;text-align:center;margin-bottom:10px;transition:border-color .2s,background .2s">
+      <div style="font-size:28px;margin-bottom:6px">📄</div>
+      <div style="font-size:13px;font-weight:600">CSV hierher ziehen</div>
+      <div class="mut" style="font-size:12px;margin-top:2px">oder Datei auswählen / Text einfügen</div>
+      <input type="file" id="bodyCsvFile" accept=".csv,text/csv" onchange="handleBodyCsvFile(this)" style="margin-top:10px">
+    </div>
     <textarea id="bodyCsvTa" rows="3" placeholder="Alternativ: CSV-Inhalt hier einfügen…" style="font-size:11px; font-family:var(--mono)"></textarea>
     <button class="btn full" style="margin-top:8px" onclick="importBodyCsvFromTa()">CSV importieren</button>
     <div id="bodyCsvResult" class="mut small" style="margin-top:8px"></div>
@@ -3918,9 +4519,10 @@ function importData(btn){
 function runBodyCsvImport(text){
   if (!text || !text.trim()){ $("bodyCsvResult").textContent="Keine Daten gefunden."; return; }
   const res = importBodyCsv(text);
-  if (res.fmt==="unknown"){ $("bodyCsvResult").textContent="Format nicht erkannt – RENPHO- oder Ultrahuman-CSV erwartet."; return; }
+  if (res.fmt==="unknown"){ $("bodyCsvResult").innerHTML="<span style='color:#FF8A82'>⚠ Format nicht erkannt</span> – RENPHO- oder Ultrahuman-CSV erwartet."; return; }
   save(); render();
-  toast("Körperdaten importiert ✓");
+  const fmtName=res.fmt==="renpho"?"RENPHO":"Ultrahuman";
+  toast("✓ "+fmtName+": "+res.days+" Tage importiert");
 }
 function importBodyCsvFromTa(){
   runBodyCsvImport($("bodyCsvTa").value);
@@ -3930,6 +4532,17 @@ function handleBodyCsvFile(input){
   const reader = new FileReader();
   reader.onload = e => runBodyCsvImport(String(e.target.result||""));
   reader.onerror = () => { $("bodyCsvResult").textContent="Datei konnte nicht gelesen werden."; };
+  reader.readAsText(file);
+}
+/* v4.1: Drag-&-Drop CSV-Import */
+function handleCsvDrop(event){
+  event.preventDefault();
+  const drop=document.getElementById("csvDrop"); if(drop) drop.classList.remove("drag-over");
+  const file=event.dataTransfer&&event.dataTransfer.files&&event.dataTransfer.files[0];
+  if(!file){ if($("bodyCsvResult")) $("bodyCsvResult").textContent="Keine Datei erkannt."; return; }
+  const reader=new FileReader();
+  reader.onload=e=>runBodyCsvImport(String(e.target.result||""));
+  reader.onerror=()=>{ if($("bodyCsvResult")) $("bodyCsvResult").textContent="Datei konnte nicht gelesen werden."; };
   reader.readAsText(file);
 }
 function vExEdit(){
@@ -3964,6 +4577,8 @@ function vExEdit(){
       <select onchange="S.exercises['${id}'].muscle=this.value;save();render()">
         ${Object.keys(MUSCLES).map(mu=>`<option value="${mu}" ${(ex.muscle||"other")===mu?"selected":""}>${MUSCLES[mu].name}</option>`).join("")}
       </select></div>
+    <div style="margin-top:14px"><b>Form-Hinweis</b><div class="mut" style="margin-bottom:8px">Eigene Technik-Notiz – erscheint beim Training (z.B. „Schulterblätter zusammen, Ellbogen 45°")</div>
+      <input type="text" value="${esc(ex.cue||"")}" placeholder="Technik-Cue eingeben…" oninput="S.exercises['${id}'].cue=this.value;save()"></div>
   </div>
   <div class="card"><b>Im Plan enthalten</b>
     <div class="row" style="margin-top:10px">
