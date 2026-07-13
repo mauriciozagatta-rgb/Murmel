@@ -358,94 +358,90 @@ svg{max-width:100%;}
   };
 })();
 
-/* ================= SEED DATA (korrigierte Trainingsdaten, einmaliger Import) ================= */
+/* ================= SEED DATA (Home Gym Edition – frischer Start, Verlauf geleert) ================= */
 const SEED = {
-  version: 1,
-  settings: { restSeconds: 90, weeklyGoal: 3, sound: true, vibration: true },
-  bodyweight: { goalKg: 85, log: [{ date: "2026-06-12", kg: 91 }], metrics: [] },
+  version: 2,
+  settings: { restSeconds: 90, weeklyGoal: 4, sound: true, vibration: true },
+  bodyweight: { goalKg: 85, log: [], metrics: [] },
   plan: {
-    push: ["flachbank","schraegbank","schulterdruecken","seitheben","cablefly","trizeps"],
-    pull: ["latzug","kabelrudern","facepulls","preacher","hammercurl"],
-    legs: ["beinpresse","rdl","beinstrecker","beinbeuger","plank"]
+    push: ["db_flachbank","db_schraegbank","db_schulterdruecken","cable_seitheben","cable_fly","cable_trizeps"],
+    pull: ["cable_latzug","cable_rudern","db_rudern_einarmig","cable_facepulls","cable_curl","db_hammercurl"],
+    legs: ["db_goblet_squat","cable_rdl","db_stepup","lunge_l1_split_squat","cable_wadenheben","plank"]
   },
   exercises: {
-    flachbank:        { name:"Flachbank KH",            perSide:false, unit:"kg", repMin:8,  repMax:12, increment:2.5,  muscle:"chest" },
-    schraegbank:      { name:"Schrägbank KH",           perSide:false, unit:"kg", repMin:8,  repMax:12, increment:2.5,  muscle:"chest" },
-    schulterdruecken: { name:"Schulterdrücken",         perSide:true,  unit:"kg", repMin:8,  repMax:12, increment:5,    muscle:"shoulders" },
-    seitheben:        { name:"Seitheben",               perSide:false, unit:"kg", repMin:12, repMax:15, increment:1,    muscle:"shoulders" },
-    cablefly:         { name:"Cable Fly",               perSide:true,  unit:"kg", repMin:12, repMax:15, increment:2.5,  muscle:"chest" },
-    trizeps:          { name:"Trizeps Pushdown",        perSide:false, unit:"kg", repMin:10, repMax:15, increment:1.25, muscle:"triceps" },
-    latzug:           { name:"Latzug",                  perSide:false, unit:"kg", repMin:8,  repMax:12, increment:4.5,  muscle:"back" },
-    kabelrudern:      { name:"Kabelrudern",             perSide:false, unit:"kg", repMin:8,  repMax:12, increment:3.5,  muscle:"back" },
-    facepulls:        { name:"Face Pulls",              perSide:false, unit:"kg", repMin:12, repMax:15, increment:1.25, muscle:"back" },
-    preacher:         { name:"Preacher Curl (Maschine)",perSide:false, unit:"kg", repMin:10, repMax:15, increment:7,    muscle:"biceps" },
-    hammercurl:       { name:"Hammer Curl",             perSide:false, unit:"kg", repMin:10, repMax:15, increment:1,    muscle:"biceps" },
-    beinpresse:       { name:"Beinpresse",              perSide:false, unit:"kg", repMin:8,  repMax:12, increment:5,    muscle:"quads" },
-    rdl:              { name:"Romanian Deadlift",       perSide:false, unit:"kg", repMin:8,  repMax:12, increment:2.5,  muscle:"hamstrings" },
-    beinstrecker:     { name:"Beinstrecker",            perSide:false, unit:"kg", repMin:12, repMax:15, increment:5,    muscle:"quads" },
-    beinbeuger:       { name:"Beinbeuger (liegend)",    perSide:false, unit:"kg", repMin:10, repMax:15, increment:5,    muscle:"hamstrings" },
-    plank:            { name:"Plank",                   perSide:false, unit:"seconds", repMin:0, repMax:0, increment:5, muscle:"core" }
+    db_flachbank:        { name:"Flachbank KH-Drücken",       perSide:false, unit:"kg", repMin:8,  repMax:12, increment:2,  muscle:"chest",
+      cue:"Bank flach · Ellbogen ~45° zum Körper, nicht 90°.",
+      howTo:"Bank auf Position 1 (flach). KH im Liegen von den Knien hochdrücken lassen. Schulterblätter zusammenziehen und unten halten, Füße fest auf dem Boden. Unten so tief, wie Schulter schmerzfrei zulässt, oben nicht ganz durchdrücken (Spannung auf der Brust halten)." },
+    db_schraegbank:       { name:"Schrägbank KH-Drücken",     perSide:false, unit:"kg", repMin:8,  repMax:12, increment:2,  muscle:"chest",
+      cue:"Bank auf 30° – nicht steiler, sonst wird's Schulter-lastig.",
+      howTo:"Bank auf ca. 30° Neigung (2.-3. Loch je nach Bank). Gleiche Ausführung wie Flachbankdrücken, KH auf Höhe der oberen Brust starten. Bei 45°+ übernimmt zu viel die vordere Schulter." },
+    db_schulterdruecken:  { name:"Schulterdrücken (KH, sitzend)", perSide:false, unit:"kg", repMin:8,  repMax:12, increment:2, muscle:"shoulders",
+      cue:"Bank aufrecht (85–90°), Rückenlehne nutzen.",
+      howTo:"Bank fast senkrecht. KH auf Schulterhöhe starten, Handflächen nach vorne. Nach oben drücken bis Arme fast gestreckt, ohne die Ellbogen komplett zu verriegeln. Unterer Rücken bleibt an der Lehne." },
+    cable_seitheben:      { name:"Kabel-Seitheben",           perSide:true,  unit:"kg", repMin:12, repMax:15, increment:1.25,    muscle:"shoulders",
+      cue:"Rolle Position 1 von 18 (ganz unten), seitlich zur Station stehen.",
+      howTo:"Rolle auf niedrigste Position, Einzelgriff. Seitlich zur Station stellen, Kabel läuft vor dem Körper zur gegenüberliegenden Hand. Arm fast gestreckt seitlich bis Schulterhöhe heben, oben kurz halten, kontrolliert runter. Leichter Cheat mit dem Oberkörper ist ok, kein Schwung aus den Beinen." },
+    cable_fly:            { name:"Cable Fly (Crossover)",     perSide:true,  unit:"kg", repMin:12, repMax:15, increment:2.5,  muscle:"chest",
+      cue:"Beide Rollen ca. Position 9–10 von 18 (Schulterhöhe, Flachbank) oder etwas höher für oberen Brustfokus — an deine Größe anpassen.",
+      howTo:"Beide Rollen auf gleiche Höhe einhängen (Standard: Schulterhöhe für mittlere Brust). Handflächen zueinander, leichte Ellbogenbeugung beibehalten, Arme in einem großen Bogen vor dem Körper zusammenführen. Am Endpunkt kurz zusammendrücken, langsam zurück bis leichte Dehnung." },
+    cable_trizeps:        { name:"Trizeps-Seilzug (Rope)",    perSide:false, unit:"kg", repMin:10, repMax:15, increment:1.25, muscle:"triceps",
+      cue:"Rolle Position 18 von 18 (ganz oben), Seil einhängen, Ellbogen am Körper fixiert.",
+      howTo:"Rolle auf höchste Position, Tau-/Seilgriff einhängen. Ellbogen eng am Oberkörper, nur der Unterarm bewegt sich. Am unteren Punkt Hände leicht auseinanderziehen für volle Kontraktion. Oberkörper nicht nach vorne fallen lassen." },
+    cable_trizeps_oh:     { name:"Überkopf-Trizepsstrecken (Seil)", perSide:false, unit:"kg", repMin:10, repMax:15, increment:1.25, muscle:"triceps",
+      cue:"Rolle Position 1–2 von 18 (ganz unten), mit dem Rücken zur Station, Seil über den Kopf.",
+      howTo:"Rolle auf niedrigste Position. Mit dem Rücken zur Station stellen, Seil mit beiden Händen hinter dem Kopf greifen, Ellbogen zeigen nach vorne oben und bleiben fixiert. Unterarme nach vorne/oben strecken, dann kontrolliert zurück in die Dehnung." },
+    cable_latzug:         { name:"Latzug (Stange)",           perSide:false, unit:"kg", repMin:8,  repMax:12, increment:5,    muscle:"back",
+      cue:"Rolle Position 18 von 18 (ganz oben), Latzugstange einhängen, Griff etwas breiter als schulterbreit.",
+      howTo:"Stange oben einhängen, auf Bank oder Boden sitzend/kniend so positionieren, dass das Kabel senkrecht bleibt. Griff außen fassen, Brust raus, Stange zum oberen Brustbereich ziehen, Ellbogen nach unten/hinten führen. Oben kurz Schulterblätter zusammenziehen, langsam auslassen." },
+    cable_rudern:         { name:"Kabelrudern (sitzend, Griffe)", perSide:false, unit:"kg", repMin:8,  repMax:12, increment:2.5, muscle:"back",
+      cue:"Rolle Position 1–2 von 18 (ganz unten), Bank vor der Station in Zuglinie stellen.",
+      howTo:"Rolle auf niedrigste Position. Bank so vor der Station platzieren, dass du mit gestreckten Armen sitzen und ziehen kannst. Zwei Einzelgriffe verwenden, Rücken aufrecht, Griffe zum unteren Bauch ziehen, Ellbogen eng am Körper vorbei, Schulterblätter am Ende zusammenziehen." },
+    db_rudern_einarmig:   { name:"Einarmiges KH-Rudern (Bankstütze)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:2, muscle:"back",
+      cue:"Ein Knie + gleiche Hand auf der Bank, Rücken parallel zum Boden.",
+      howTo:"Ein Knie und die gleichseitige Hand auf der Bank abstützen, Rücken flach und parallel zum Boden. KH mit der freien Hand zur Hüfte ziehen, Ellbogen läuft am Körper entlang nach hinten, oben kurz halten. Rumpf nicht mitdrehen." },
+    cable_facepulls:      { name:"Face Pulls (Seil)",         perSide:false, unit:"kg", repMin:12, repMax:15, increment:1.25, muscle:"back",
+      cue:"Rolle ca. Position 13–15 von 18 (Augen-/Stirnhöhe, je nach deiner Größe anpassen), Seil einhängen.",
+      howTo:"Rolle auf Höhe der Augen/Stirn einstellen. Seilgriff mit beiden Händen (Daumen zeigen zu dir), zum Gesicht ziehen und dabei die Hände auseinanderführen, Ellbogen enden auf Schulterhöhe oder leicht darüber. Fokus auf hintere Schulter/oberen Rücken, nicht auf Bizeps." },
+    cable_curl:           { name:"Kabel-Bizepscurl",          perSide:false, unit:"kg", repMin:10, repMax:15, increment:1.25, muscle:"biceps",
+      cue:"Rolle Position 1 von 18 (ganz unten), Seil oder Stange einhängen.",
+      howTo:"Rolle auf niedrigste Position. Griff (Seil oder gerade Stange) mit Untergriff fassen, Ellbogen bleiben am Körper fixiert, nur Unterarm bewegt sich nach oben. Oben kurz zusammendrücken, kontrolliert ablassen bis fast gestreckt." },
+    db_hammercurl:        { name:"Hammer Curl (KH)",          perSide:false, unit:"kg", repMin:10, repMax:15, increment:1,    muscle:"biceps",
+      cue:"Neutraler Griff (Handflächen zeigen zueinander), Ellbogen fixiert.",
+      howTo:"Stehend, KH im neutralen Griff (Daumen nach oben) halten. Ellbogen am Körper fixiert, KH nach oben curlen ohne Schwung aus der Schulter, oben kurz halten, langsam absenken." },
+    db_goblet_squat:      { name:"Goblet Squat (KH, leicht)", perSide:false, unit:"kg", repMin:8,  repMax:12, increment:1,    muscle:"quads",
+      cue:"KH senkrecht vor der Brust halten, Ellbogen zwischen die Knie führen.",
+      howTo:"Eine KH senkrecht mit beiden Händen vor der Brust halten (oberes Ende). Füße schulterbreit, Zehen leicht nach außen. In die Hocke gehen, so tief wie schmerzfrei möglich – Ellbogen können innen an den Knien entlanggleiten. Ferse bleibt am Boden, Knie in Zehenrichtung. Nur so tief gehen, wie es sich stabil und schmerzfrei anfühlt – Tiefe langsam steigern, nicht das Gewicht." },
+    cable_rdl:            { name:"Kabel-Rumänisches Kreuzheben", perSide:false, unit:"kg", repMin:10, repMax:15, increment:2.5, muscle:"hamstrings",
+      cue:"Rolle Position 1 von 18 (ganz unten), mit dem Rücken zur Station stehen.",
+      howTo:"Rolle auf niedrigste Position, gerade Stange oder Seil zwischen den Beinen greifen, mit dem Rücken zur Station stehen. Knie nur leicht gebeugt, Hüfte nach hinten schieben (Rücken bleibt gerade), bis Dehnung im hinteren Oberschenkel spürbar, dann Hüfte nach vorne zurück in den Stand drücken. Kein Rundrücken." },
+    db_stepup:            { name:"Step-Up (KH, Bank)",        perSide:true,  unit:"kg", repMin:8,  repMax:12, increment:1,    muscle:"quads",
+      cue:"Bank auf niedrigste/mittlere Stufe, KH locker an den Seiten.",
+      howTo:"Bank auf niedrige oder mittlere Höhe stellen (nicht zu hoch – Knie sollte beim Aufsteigen keinen scharfen Winkel machen). KH in beiden Händen locker halten. Ein Fuß komplett auf die Bank, durch die Ferse nach oben drücken bis der andere Fuß oben ankommt, kontrolliert zurück. Seite wechseln." },
+    cable_wadenheben:     { name:"Wadenheben (Kabel/KH)",     perSide:false, unit:"kg", repMin:12, repMax:20, increment:2.5, muscle:"other",
+      cue:"Vorderfuß auf einer kleinen Erhöhung (z.B. Hantelscheibe) für volle Dehnung.",
+      howTo:"Auf den Fußballen stehen (Erhöhung optional für mehr ROM), KH in den Händen oder am Kabel. Ganz nach oben auf die Zehenspitzen drücken, oben kurz halten, langsam bis zur vollen Dehnung in der Ferse absenken." },
+    plank:                { name:"Plank",                     perSide:false, unit:"seconds", repMin:0, repMax:0, increment:5, muscle:"core",
+      cue:"Ellbogen unter den Schultern, Becken nicht durchhängen lassen.",
+      howTo:"Unterarmstütz, Ellbogen direkt unter den Schultern. Körper bildet eine gerade Linie von Kopf bis Ferse – Po nicht hochstrecken, Hüfte nicht durchhängen lassen. Bauch und Gesäß aktiv anspannen, normal weiteratmen." },
+    lunge_l1_split_squat: { name:"Lunge-Leiter L1: Split Squat (Körpergewicht, Bank-Halt)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:1, muscle:"quads",
+      cue:"Beide Hände an der Bank/Wand zur Balance, kleiner Ausfallschritt, kontrolliert runter.",
+      howTo:"Kleinen Schritt nach hinten/vorne in eine Split-Stance, Hände an Bank oder Wand für Balance (nicht zum Abstützen des Gewichts). Langsam in die Knie gehen bis eine leichte, schmerzfreie Dehnung/Beugung entsteht, dann zurück nach oben. Bewusst klein und kontrolliert – hier geht es um Bewegungsqualität, nicht Tiefe." },
+    lunge_l2_reverse:     { name:"Lunge-Leiter L2: Reverse Lunge (KH, leicht)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:1, muscle:"quads",
+      cue:"Schritt nach hinten statt nach vorne – schont die Knie beim Einstieg.",
+      howTo:"Leichte KH an den Seiten. Aus dem Stand einen Schritt nach hinten setzen, hinteres Knie sinkt kontrolliert Richtung Boden (muss nicht aufsetzen), vorderes Knie über dem Fuß. Über die vordere Ferse zurück in den Stand drücken. Nur so tief wie schmerzfrei." },
+    lunge_l3_forward:     { name:"Lunge-Leiter L3: Ausfallschritt vorwärts (KH)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:1, muscle:"quads",
+      cue:"Großer Schritt nach vorne, Oberkörper aufrecht.",
+      howTo:"Leichte KH an den Seiten. Großen Schritt nach vorne, beide Knie beugen sich auf ca. 90°, hinteres Knie schwebt knapp über dem Boden. Über die vordere Ferse zurück in den Stand drücken. Erst wenn L2 zwei Sessions in Folge sauber lief." },
+    lunge_l4_walking:     { name:"Lunge-Leiter L4: Walking Lunge (KH)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:1, muscle:"quads",
+      cue:"Wie L3, aber durchgehend vorwärts laufend statt zurück in den Stand.",
+      howTo:"Leichte KH an den Seiten. Ausfallschritt nach vorne, aber statt zurückzutreten das hintere Bein nach vorne durchschwingen in den nächsten Ausfallschritt – durchgehende Vorwärtsbewegung über den verfügbaren Raum." }
   },
-  /* Datums-Korrektur lt. Gym-Check-ins: 31.05. + 02./04./06./09./10./12.06. */
-  sessions: [
-    { id:"s1", type:"push", date:"2026-05-31", entries:[
-      { exerciseId:"flachbank", sets:[{kg:15,reps:10},{kg:15,reps:10},{kg:15,reps:10}], notes:"" },
-      { exerciseId:"schraegbank", sets:[{kg:12.5,reps:8},{kg:12.5,reps:8},{kg:12.5,reps:8}], notes:"" },
-      { exerciseId:"schulterdruecken", sets:[{kg:15,reps:8},{kg:15,reps:8},{kg:15,reps:8}], notes:"" },
-      { exerciseId:"seitheben", sets:[{kg:6,reps:8},{kg:6,reps:8},{kg:6,reps:8}], notes:"" },
-      { exerciseId:"cablefly", sets:[{kg:8.75,reps:12},{kg:8.75,reps:12},{kg:8.75,reps:12}], notes:"" },
-      { exerciseId:"trizeps", sets:[{kg:23.75,reps:10},{kg:23.75,reps:10}], notes:"Stange" }
-    ]},
-    { id:"s2", type:"pull", date:"2026-06-02", entries:[
-      { exerciseId:"latzug", sets:[{kg:45,reps:10},{kg:45,reps:10},{kg:45,reps:10}], notes:"" },
-      { exerciseId:"kabelrudern", sets:[{kg:20,reps:8},{kg:20,reps:8},{kg:20,reps:8}], notes:"" },
-      { exerciseId:"facepulls", sets:[{kg:12.5,reps:10},{kg:12.5,reps:10},{kg:12.5,reps:10}], notes:"" },
-      { exerciseId:"preacher", sets:[{kg:32,reps:10},{kg:32,reps:10},{kg:32,reps:10}], notes:"" },
-      { exerciseId:"hammercurl", sets:[{kg:7.5,reps:12},{kg:7.5,reps:12},{kg:7.5,reps:12}], notes:"" }
-    ]},
-    { id:"s3", type:"legs", date:"2026-06-04", entries:[
-      { exerciseId:"beinpresse", sets:[{kg:100,reps:10},{kg:100,reps:10},{kg:100,reps:10}], notes:"" },
-      { exerciseId:"rdl", sets:[{kg:10,reps:10},{kg:10,reps:10},{kg:10,reps:10}], notes:"" },
-      { exerciseId:"beinstrecker", sets:[{kg:45,reps:12},{kg:45,reps:12},{kg:45,reps:12}], notes:"" },
-      { exerciseId:"beinbeuger", sets:[{kg:32,reps:10},{kg:32,reps:10}], notes:"" },
-      { exerciseId:"plank", sets:[{seconds:30},{seconds:30},{seconds:30}], notes:"" }
-    ]},
-    { id:"s4", type:"push", date:"2026-06-06", entries:[
-      { exerciseId:"flachbank", sets:[{kg:17.5,reps:8},{kg:17.5,reps:8},{kg:17.5,reps:8}], notes:"" },
-      { exerciseId:"schraegbank", sets:[{kg:12.5,reps:10},{kg:12.5,reps:10},{kg:12.5,reps:10}], notes:"" },
-      { exerciseId:"schulterdruecken", sets:[{kg:15,reps:10},{kg:15,reps:10},{kg:15,reps:10}], notes:"" },
-      { exerciseId:"seitheben", sets:[{kg:6,reps:10},{kg:6,reps:10},{kg:6,reps:8}], notes:"" },
-      { exerciseId:"cablefly", sets:[{kg:11.25,reps:10},{kg:11.25,reps:10},{kg:11.25,reps:10}], notes:"" },
-      { exerciseId:"trizeps", sets:[{kg:18.75,reps:8},{kg:18.75,reps:8},{kg:18.75,reps:8}], notes:"Seil – Form litt etwas bei diesem Gewicht" }
-    ]},
-    { id:"s5", type:"pull", date:"2026-06-09", entries:[
-      { exerciseId:"latzug", sets:[{kg:54,reps:12},{kg:54,reps:10},{kg:54,reps:10}], notes:"" },
-      { exerciseId:"kabelrudern", sets:[{kg:20,reps:8},{kg:16.5,reps:10},{kg:16.5,reps:10}], notes:"20kg war zu schwer, runter auf 16.5kg" },
-      { exerciseId:"facepulls", sets:[{kg:13.75,reps:10},{kg:13.75,reps:10},{kg:13.75,reps:10}], notes:"" },
-      { exerciseId:"preacher", sets:[{kg:39,reps:10},{kg:39,reps:8},{kg:39,reps:8}], notes:"" },
-      { exerciseId:"hammercurl", sets:[{kg:10,reps:8},{kg:8,reps:12},{kg:8,reps:12}], notes:"10kg zu schwer, runter auf 8kg" }
-    ]},
-    { id:"s6", type:"legs", date:"2026-06-10", entries:[
-      { exerciseId:"beinpresse", sets:[{kg:105,reps:10},{kg:105,reps:10},{kg:105,reps:10}], notes:"" },
-      { exerciseId:"rdl", sets:[{kg:12.5,reps:10},{kg:12.5,reps:10},{kg:12.5,reps:10}], notes:"Eingeschränkte Flexibilität, nicht volle Tiefe" },
-      { exerciseId:"beinstrecker", sets:[{kg:50,reps:12},{kg:50,reps:12},{kg:50,reps:12}], notes:"" },
-      { exerciseId:"beinbeuger", sets:[{kg:32,reps:12},{kg:32,reps:10},{kg:32,reps:9}], notes:"" },
-      { exerciseId:"plank", sets:[{seconds:35},{seconds:35},{seconds:35}], notes:"" }
-    ]},
-    { id:"s7", type:"push", date:"2026-06-12", entries:[
-      { exerciseId:"flachbank", sets:[{kg:17.5,reps:10},{kg:17.5,reps:10},{kg:17.5,reps:10}], notes:"" },
-      { exerciseId:"schraegbank", sets:[{kg:15,reps:10},{kg:15,reps:10},{kg:15,reps:10}], notes:"" },
-      { exerciseId:"schulterdruecken", sets:[{kg:20,reps:8},{kg:20,reps:8},{kg:20,reps:8}], notes:"Maschine springt von 15 direkt auf 20kg/Seite" },
-      { exerciseId:"seitheben", sets:[{kg:6,reps:10},{kg:6,reps:10},{kg:6,reps:10}], notes:"" },
-      { exerciseId:"cablefly", sets:[{kg:11.25,reps:10},{kg:11.25,reps:10},{kg:11.25,reps:10}], notes:"" },
-      { exerciseId:"trizeps", sets:[{kg:11.25,reps:10},{kg:11.25,reps:10},{kg:11.25,reps:10}], notes:"Seil, Wrist Wraps – bewusst leichter für saubere Form" }
-    ]}
-  ],
+  sessions: [],
   draft: null
 };
 
 /* ================= STATE & STORAGE ================= */
-const KEY = "ppl:v1";
+const KEY = "ppl:v2";
 let S = null, view = "home", viewArg = null, memOnly = false, saveT = null;
 let finishAsk = false;
 
@@ -606,6 +602,12 @@ function syncStatusLine(){
 const TYPES = { push:{label:"Push", color:"var(--push)", cls:"t-push"},
                 pull:{label:"Pull", color:"var(--pull)", cls:"t-pull"},
                 legs:{label:"Legs", color:"var(--legs)", cls:"t-legs"} };
+/* Home-Gym-Erweiterung #8: Setup-Checkliste pro Session-Typ (ATX Cable Cross Aufbau) */
+const SETUP_CHECKLIST = {
+  push: ["Seil (Rope) für Trizeps einhängen","Bank flach/30° je nach erster Übung einstellen","Beide Rollen auf Schulterhöhe für Cable Fly"],
+  pull: ["Latzugstange oben einhängen","Bank vor die Station stellen für Rudern","Griffe griffbereit für Face Pulls (Seil, Augenhöhe)"],
+  legs: ["Bank auf niedrige/mittlere Höhe für Step-Up","Seil/Stange unten für Kabel-RDL einhängen","KH griffbereit für Goblet Squat & Lunge-Leiter"]
+};
 const MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
 const $ = id => document.getElementById(id);
 const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
@@ -912,17 +914,27 @@ const MUSCLES = {
   other:      {name:"Sonstige",   mev:0,  mav:99},
 };
 const SUB_FALLBACK = {
-  chest:["Liegestütze","Brustpresse Maschine","Kurzhantel-Fly"],
-  back:["Klimmzüge","Langhantelrudern","Einarmiges KH-Rudern"],
-  shoulders:["Arnold Press","Frontheben","Reverse Fly"],
-  biceps:["Langhantel-Curl","Konzentrationscurl","Schrägbank-Curl"],
-  triceps:["Dips","Overhead-Extension","Enge Liegestütze"],
-  quads:["Kniebeuge","Ausfallschritte","Hackenschmidt"],
-  hamstrings:["Stiff-Leg-Deadlift","Good Morning","Nordic Curl"],
-  core:["Hanging Leg Raise","Ab Wheel","Cable Crunch"],
+  chest:["Liegestütze (erhöht)","Enge Liegestütze","KH-Überzug (Pullover)"],
+  back:["Kabelrudern (breiter Griff)","Reverse Fly (Kabel)","Einarmiges KH-Rudern (steilerer Winkel)"],
+  shoulders:["Arnold Press (KH)","Frontheben (KH)","Reverse Fly (Kabel)"],
+  biceps:["Konzentrationscurl (KH)","Kabel-Curl (Seil, Untergriff)","21s Bizepscurl (KH)"],
+  triceps:["Bankdips","Diamant-Liegestütze","KH-Kickback"],
+  quads:["Goblet Squat (schwerer)","Step-Up (höhere Bank)","Bulgarian Split Squat (Bank)"],
+  hamstrings:["Kabel-RDL (schwerer)","Gute Morgen (Kabel)","Einbeiniges KH-RDL"],
+  core:["Cable Crunch (kniend)","Pallof Press (Kabel)","Plank-Variation (Seitplank)"],
   other:["—"],
 };
 /* e1RM-Verlauf einer Übung über abgeschlossene Sessions (älteste→neueste) */
+const LUNGE_LADDER = ["lunge_l1_split_squat","lunge_l2_reverse","lunge_l3_forward","lunge_l4_walking"];
+function entriesFor(exId, n){
+  const out=[];
+  for (const sess of sortedSessions()){
+    const e = sess.entries.find(x=>x.exerciseId===exId);
+    if (e) out.push({entry:e, date:sess.date});
+    if (out.length>=n) break;
+  }
+  return out;
+}
 function e1Series(exId){
   const ex=S.exercises[exId]; const out=[];
   for (const s of [...S.sessions].filter(x=>x.date<=todayStr()).sort((a,b)=>a.date<b.date?-1:1)){
@@ -1208,6 +1220,8 @@ function vHome(){
   const _weakAcc = weakPointAccessory();
   const _volWarns = volumeWarnings();
   const _repJumps = repQualityJumps();
+  /* Home-Gym-Erweiterung #4: Recomp-Fatigue — Recovery an Trainingstagen vs. Ruhetagen */
+  const _recompLoad = recoveryLoadInfo();
   /* v4.1: Habit & Consistency */
   const _nudge = morningNudge(due);
   const _rescue = streakRescue();
@@ -1301,6 +1315,7 @@ function vHome(){
     if(_weakAcc) insights.push(`<div class="hint">🎯 <b>${_weakAcc.label} hinkt nach.</b> Tipp: ${esc(_weakAcc.ex)} ergänzen — ${_weakAcc.why}.</div>`);
     const _prRec=prRecoveryInsight();
     if(_prRec) insights.push(`<div class="hint up">🔬 <b>Muster erkannt:</b> Deine PRs entstehen bei ⌀ ${_prRec.prAvg} Recovery vs. ${_prRec.normAvg} an anderen Tagen — plane schwere Versuche für erholte Tage.</div>`);
+    if(_recompLoad) insights.push(`<div class="hint ${_recompLoad.warn?'hold':''}">${_recompLoad.warn?"⚠️":"⚡"} <b>Recovery-Bilanz:</b> ⌀ ${_recompLoad.trainAvg} an Trainingstagen vs. ⌀ ${_recompLoad.restAvg} an Ruhetagen (letzte 14 Tage)${_recompLoad.warn?" — Trainingslast drückt spürbar auf die Erholung, evtl. Ruhetag einschieben.":"."}</div>`);
     _volWarns.slice(0,2).forEach(w=>{
       insights.push(w.type==="low"
         ? `<div class="hint">📉 <b>${w.name}:</b> nur ${w.sets} Sätze diese Woche (Minimum ${w.limit}). Mehr Volumen für Wachstum.</div>`
@@ -1356,6 +1371,11 @@ function todaysPlanCard(due){
       <div class="grow"><b style="font-weight:600">${esc(ex.name)}</b> ${lm}</div>
       <span class="num mut" style="font-size:12px">${valTxt}</span></div>`;
   }).join("");
+  const setup = SETUP_CHECKLIST[due];
+  const setupHtml = setup ? `<details class="lastblock" style="margin-top:8px"><summary>🔧 Setup-Checkliste ▾</summary>
+    <div class="lastdetail"><ul style="margin:4px 0 0 18px;padding:0">${setup.map(s=>`<li style="margin:3px 0">${esc(s)}</li>`).join("")}</ul></div></details>` : "";
+  const chainHint = (isChainWeek() && (due==="push"||due==="pull"))
+    ? `<div class="hint" style="margin-top:8px">⛓ Ketten-Woche (Zyklus-Woche 3): heute bei Kabelübungen Ketten dranhängen für mehr Reiz — Badge in der Session antippen.</div>` : "";
   return `<div class="card ${T.cls}" style="border-color:var(--accB)">
     <div class="row" style="align-items:center"><div class="grow">
       <div class="lbl" style="color:${T.color}">▶ Heute dran</div>
@@ -1364,6 +1384,8 @@ function todaysPlanCard(due){
     </div>
     <button class="btn accent ${T.cls}" onclick="startSession('${due}')">Starten</button></div>
     <div style="margin-top:8px">${rows}</div>
+    ${setupHtml}
+    ${chainHint}
   </div>`;
 }
 /* Welche PPL-Art ist an einem bestimmten Datum dran? (nächste nach der letzten davor) */
@@ -1425,9 +1447,12 @@ function vSession(){
         ${ex.perSide?'<span class="badge">pro Seite</span>':""}
         ${sec?'<span class="badge">Sekunden</span>':""}
         ${ex.muscle&&MUSCLES[ex.muscle]?`<span class="badge">${MUSCLES[ex.muscle].name}</span>`:""}
+        ${e.exerciseId.startsWith("cable_")?`<button class="badge" style="cursor:pointer;border:none;${e.chains?"background:rgba(155,93,229,.3);color:var(--txt)":""}" onclick="toggleChains(${ei})" title="Ketten für diese Übung an/aus">⛓ ${e.chains?"Ketten an":"Ketten"}</button>`:""}
         ${!sec && e.sets[0]?.kg ? weightDeltaHtml(e.exerciseId, e.sets[0].kg) : ""}
         <div class="mut" style="margin-top:3px">${sec?"+"+ex.increment+"s Progression · ▶ startet 5s-Vorlauf, dann Countdown":"Ziel "+ex.repMin+"–"+ex.repMax+" Reps · Schritt "+fmt(ex.increment)+" kg"}</div>
         ${ex.cue?`<div class="hint" style="margin-top:6px">💡 ${esc(ex.cue)}</div>`:""}
+        ${ex.howTo?`<details class="lastblock"><summary>Ausführung anzeigen ▾</summary><div class="lastdetail">${esc(ex.howTo)}</div></details>`:""}
+        ${!sec && !lastEntryFor(e.exerciseId) && e.exerciseId.startsWith("cable_")?calibratorHtml(e.exerciseId,ei):""}
         ${lastDetail?`<details class="lastblock"><summary>Letztes Mal anzeigen ▾</summary><div class="lastdetail">${lastDetail}</div></details>`:""}
       </div>
       <div class="movebtns">
@@ -1447,7 +1472,7 @@ function vSession(){
       <input type="text" class="notesin" placeholder="Notiz (Equipment, Form…)" value="${esc(e.notes)}"
         oninput="S.draft.entries[${ei}].notes=this.value; save();">
       <div class="qtags">
-        ${["leicht","hart","Form top","Schmerz","Wrist Wraps"].map(tag=>`<button class="qtag" onclick="addTag(${ei},'${tag}')">+ ${tag}</button>`).join("")}
+        ${[...["leicht","hart","Form top","Schmerz","Wrist Wraps"], ...(["db_goblet_squat","lunge_l1_split_squat","lunge_l2_reverse","lunge_l3_forward","lunge_l4_walking"].includes(e.exerciseId)?["Volle Tiefe","Teilweise"]:[])].map(tag=>`<button class="qtag" onclick="addTag(${ei},'${tag}')">+ ${tag}</button>`).join("")}
       </div>
     </div>`;
   }).join("");
@@ -1489,6 +1514,32 @@ function addTag(ei,tag){
   const e=S.draft.entries[ei];
   e.notes = e.notes ? (e.notes.replace(/\s*$/,"")+" · "+tag) : tag;
   save(); render();
+}
+/* Ketten-Toggle für Kabelübungen (#2 Home-Gym-Erweiterung) */
+function toggleChains(ei){
+  const e=S.draft.entries[ei];
+  e.chains = !e.chains;
+  save(); render();
+  toast(e.chains ? "⛓ Ketten aktiviert für diese Übung" : "Ketten deaktiviert");
+}
+/* Kabelzug-Kalibrator: beim ersten Mal Schrittweite ans echte Equipment anpassen (#6) */
+function calibratorHtml(exId, ei){
+  const ex = S.exercises[exId];
+  return `<div class="hint" style="margin-top:8px">
+    ⚙️ Erstes Mal an diesem Kabelzug — Schrittweite deines Stapels/deiner Kette anpassen?
+    <div class="row" style="margin-top:6px;gap:6px">
+      <input type="number" step="0.25" id="calib-${ei}" value="${ex.increment}" style="width:70px" class="numin">
+      <span class="mut" style="align-self:center">kg pro Stufe</span>
+      <button class="btn small" onclick="calibrateIncrement('${exId}',${ei})">Übernehmen</button>
+    </div>
+  </div>`;
+}
+function calibrateIncrement(exId, ei){
+  const inp = $("calib-"+ei); if(!inp) return;
+  const v = parseFloat(String(inp.value).replace(",","."));
+  if(!v || v<=0){ toast("Bitte gültigen Wert eingeben"); return; }
+  S.exercises[exId].increment = v;
+  save(); render(); toast("Schrittweite gespeichert: "+fmt(v)+" kg");
 }
 /* Ersatzübungen-Sheet (#19) */
 function openSubSheet(ei){
@@ -1602,7 +1653,7 @@ function addExerciseConfirm(){
     S.exercises[id] = { name, perSide:false, unit:"kg", repMin:8, repMax:12, increment:2.5 };
   }
   const sg = suggest(id);
-  S.draft.entries.push({ exerciseId:id, sets:sg.sets.map(s=>({...s,done:false})), notes:"", hint:sg.hint, hintCls:sg.cls, goal:sg.goal });
+  S.draft.entries.push({ exerciseId:id, sets:sg.sets.map(s=>({...s,done:false})), notes:"", hint:sg.hint, hintCls:sg.cls, goal:sg.goal, chains:false });
   closeAddSheet(); save(); render();
 }
 function cancelDraft(){
@@ -1621,7 +1672,7 @@ function finishSession(){
 function doFinish(mode){
   const d=S.draft;
   const entries = d.entries.map(e=>({
-      exerciseId:e.exerciseId, notes:e.notes,
+      exerciseId:e.exerciseId, notes:e.notes, chains:!!e.chains,
       sets: (mode==="done" ? e.sets.filter(s=>s.done) : e.sets).map(({done,...rest})=>rest)
     })).filter(e=>e.sets.length);
   if (!entries.length){ toast("Keine Sätze erfasst"); finishAsk=false; render(); return; }
@@ -1670,6 +1721,13 @@ function doFinish(mode){
   }, 100);
   /* v4.0: Lift Mastery Rang-Prüfung */
   setTimeout(()=>{ try{ checkLiftMasteryRankUps(); }catch(e){} }, 2400);
+  /* Home-Gym-Erweiterung #1: Lunge-Leiter Aufstieg prüfen */
+  if(d.type==="legs"){
+    setTimeout(()=>{ try{
+      const adv = checkLungeLadderAdvance();
+      if(adv) toast(`🪜 Lunge-Leiter: ${adv.from} gemeistert! Nächstes Mal: ${adv.to}`);
+    }catch(e){} }, 3200);
+  }
 }
 
 /* ================= v1.9 HELFER ================= */
@@ -1719,6 +1777,7 @@ function vDetail(){
     }).join("");
     return `<div class="card ${T.cls}"><b>${esc(ex.name)}</b>
       ${ex.perSide?'<span class="badge">pro Seite</span>':""}
+      ${e.chains?'<span class="badge">⛓ Ketten</span>':""}
       ${e.notes?`<div class="hint">${esc(e.notes)}</div>`:""}${rows}</div>`;
   }).join("");
   return `<div class="row"><h1 class="grow" style="color:${T.color}">${T.label}</h1>
@@ -1928,7 +1987,7 @@ async function shareWrapped(year){
   }catch(e){ toast("Teilen nicht möglich"); }
 }
 function vCharts(){
-  chartEx = chartEx || "flachbank";
+  chartEx = chartEx || "db_flachbank";
   const seg = `<div class="seg">
     <button class="${chartTab==="ex"?"on":""}" onclick="chartTab='ex';render()">Übungen</button>
     <button class="${chartTab==="vol"?"on":""}" onclick="chartTab='vol';render()">Volumen</button>
@@ -2491,7 +2550,7 @@ const STORY_CHAINS = [
   { id:"chest_blitz",  name:"Brust-Offensive",   icon:"🔴",
     steps:[
       {name:"2× Push-Tag",          desc:"Zwei Push-Sessions nach Kettenstart abschließen.", type:"sess_type",  stype:"push",      target:2},
-      {name:"Flachbank steigern",   desc:"Beim Flachbank-Drücken eine neue Bestleistung erzielen.", type:"ex_prog", exId:"flachbank", target:1},
+      {name:"Flachbank steigern",   desc:"Beim Flachbank-Drücken eine neue Bestleistung erzielen.", type:"ex_prog", exId:"db_flachbank", target:1},
       {name:"Brust-PR",             desc:"Einen neuen PR an einer Brust-Übung aufstellen.",  type:"pr_muscle", muscle:"chest",    target:1},
     ],
     reward:{coins:40, trophyName:"Brust-Offensive abgeschlossen"},
@@ -2499,7 +2558,7 @@ const STORY_CHAINS = [
   { id:"pull_machine",  name:"Zug-Maschine",      icon:"🔵",
     steps:[
       {name:"2× Pull-Tag",          desc:"Zwei Pull-Sessions nach Kettenstart abschließen.", type:"sess_type",  stype:"pull",      target:2},
-      {name:"Lat-Pulldown steigern",desc:"Beim Latziehen eine neue Bestleistung erzielen.",  type:"ex_prog",    exId:"latzug",    target:1},
+      {name:"Lat-Pulldown steigern",desc:"Beim Latziehen eine neue Bestleistung erzielen.",  type:"ex_prog",    exId:"cable_latzug",    target:1},
       {name:"Rücken-PR",            desc:"Einen neuen PR an einer Rücken-Übung aufstellen.", type:"pr_muscle", muscle:"back",     target:1},
     ],
     reward:{coins:40, trophyName:"Zug-Maschine abgeschlossen"},
@@ -2507,7 +2566,7 @@ const STORY_CHAINS = [
   { id:"legs_of_steel", name:"Stählerne Beine",   icon:"🟢",
     steps:[
       {name:"2× Leg-Tag",           desc:"Zwei Bein-Sessions nach Kettenstart abschließen.",  type:"sess_type", stype:"legs",     target:2},
-      {name:"Beinpresse steigern",  desc:"Bei der Beinpresse eine neue Bestleistung erzielen.",type:"ex_prog",  exId:"beinpresse",target:1},
+      {name:"Goblet Squat steigern",desc:"Beim Goblet Squat eine neue Bestleistung erzielen.",type:"ex_prog",  exId:"db_goblet_squat",target:1},
       {name:"Bein-PR",              desc:"Einen neuen PR an einer Bein-Übung aufstellen.",    type:"pr_muscle", muscle:"quads",   target:1},
     ],
     reward:{coins:40, trophyName:"Stählerne Beine abgeschlossen"},
@@ -2581,7 +2640,7 @@ function seasonInfo(g){
 }
 function achievementsList(g=computeGami()){
   const sess=S.sessions.filter(s=>s.date<=todayStr()); const n=sess.length;
-  const legPress100=sess.some(s=>s.entries.some(e=>e.exerciseId==="beinpresse"&&e.sets.some(x=>(x.kg||0)>=100)));
+  const legPress100=sess.some(s=>s.entries.some(e=>e.exerciseId==="db_goblet_squat"&&e.sets.some(x=>(x.kg||0)>=20)));
   const plank60=sess.some(s=>s.entries.some(e=>{const ex=S.exercises[e.exerciseId];return ex&&ex.unit==="seconds"&&e.sets.some(x=>(x.seconds||0)>=60);}));
   const fullWeek=Object.values(weeksMap()).some(c=>c>=S.settings.weeklyGoal);
   const byW={}; for(const s of sess){const w=isoWeek(s.date); (byW[w]=byW[w]||new Set()).add(s.type);}
@@ -2598,7 +2657,7 @@ function achievementsList(g=computeGami()){
     {key:"week",ico:"✅",name:"Volle Woche",desc:"Wochenziel erreicht",un:fullWeek},
     {key:"streak3",ico:"🔥",name:"3-Wochen-Streak",desc:Math.min(st.streak,3)+"/3 Wochen",un:st.streak>=3},
     {key:"three",ico:"🔁",name:"Push+Pull+Legs",desc:"Alle drei in 1 Woche",un:allThree},
-    {key:"legpress",ico:"🦵",name:"Beinpresse 100 kg",desc:"Schwere Beine",un:legPress100},
+    {key:"legpress",ico:"🦵",name:"Goblet Squat 20 kg",desc:"Schwere Beine",un:legPress100},
     {key:"plank",ico:"🧱",name:"Plank 60 s",desc:"Eiserne Mitte",un:plank60},
     {key:"recomp",ico:"📉",name:"Recomp gestartet",desc:"Gewicht gesenkt",un:lost},
     {key:"goal85",ico:"🎯",name:"Ziel "+fmt(S.bodyweight.goalKg)+" kg",desc:"Geschafft!",un:reached,egg:true},
@@ -2951,8 +3010,8 @@ function checkContextEggs(session){
   const md=session.date.slice(5); /* MM-DD */
   if(md==="12-20") eggs.push({key:"bday_train",ico:"🎂",text:"Geburtstag und Training! Das nennt man Selbstliebe — Doppel-XP!",xp:100});
   /* Beinpresse 100kg */
-  const leg100=session.entries.some(e=>e.exerciseId==="beinpresse"&&e.sets.some(x=>(x.kg||0)>=100));
-  if(leg100 && !S.gami.milestonesSeen?.leg100) eggs.push({key:"leg100",ico:"🦵",text:"Erstes Mal 100 kg Beinpresse! Das hinterlässt Spuren.",xp:75});
+  const leg100=session.entries.some(e=>e.exerciseId==="db_goblet_squat"&&e.sets.some(x=>(x.kg||0)>=20));
+  if(leg100 && !S.gami.milestonesSeen?.leg100) eggs.push({key:"leg100",ico:"🦵",text:"Erstes Mal 20 kg Goblet Squat! Das hinterlässt Spuren.",xp:75});
   return eggs;
 }
 
@@ -3141,27 +3200,34 @@ const LM_RANKS = [
    Übungen ohne Eintrag erhalten Default-Skala. */
 const LM_THRESHOLDS = {
   /* Push */
-  flachbank:        [0,15,25,35,50,70,95],
-  schraegbank:      [0,12,22,32,47,65,88],
-  schulterdruecken: [0,10,18,27,40,58,80],
-  seitheben:        [0,5, 9, 14, 20,28,38],
-  cablefly:         [0,8, 14, 20, 30,42,58],
-  trizeps:          [0,12,20, 30, 45,62,82],
+  db_flachbank:        [0,15,22,28,34,40,46],
+  db_schraegbank:      [0,12,18,24,30,36,42],
+  db_schulterdruecken: [0,10,15,20,26,32,38],
+  cable_seitheben:     [0,4, 7, 10,14,18,22],
+  cable_fly:           [0,6, 10,15,20,26,32],
+  cable_trizeps:       [0,10,18,26,35,45,55],
+  cable_trizeps_oh:    [0,8, 14,20,28,36,44],
   /* Pull */
-  latzug:           [0,30,50,70,90,115,148],
-  kabelrudern:      [0,15,25,37,52,70, 92],
-  facepulls:        [0,8, 14, 20, 30,42, 58],
-  preacher:         [0,20,35,52,70,92, 120],
-  hammercurl:       [0,8, 14, 20, 30,42, 58],
+  cable_latzug:        [0,20,32,45,60,75,90],
+  cable_rudern:        [0,18,28,40,52,65,80],
+  db_rudern_einarmig:  [0,12,18,24,30,38,46],
+  cable_facepulls:     [0,6, 10,14,19,25,31],
+  cable_curl:          [0,8, 13,18,24,30,37],
+  db_hammercurl:       [0,6, 10,14,18,22,27],
   /* Legs */
-  beinpresse:       [0,60,90,120,155,195,240],
-  rdl:              [0,20,35, 52, 72, 95, 125],
-  beinstrecker:     [0,25,42, 62, 85,110, 142],
-  beinbeuger:       [0,18,30, 45, 62, 82, 108],
-  /* Plank (seconds) */
-  plank:            [0,20,40, 60, 90, 120, 180],
+  db_goblet_squat:     [0,8, 14,20,26,32,38],
+  cable_rdl:           [0,15,25,35,47,60,75],
+  db_stepup:           [0,8, 14,20,26,33,40],
+  cable_wadenheben:    [0,15,25,37,50,65,82],
+  /* Lunge-Leiter — niedrige Decke, da hier Bewegungsqualität vor Last zählt */
+  lunge_l1_split_squat:[0,2, 4, 7, 10,14,18],
+  lunge_l2_reverse:    [0,2, 5, 8, 12,16,20],
+  lunge_l3_forward:    [0,3, 6, 10,14,19,24],
+  lunge_l4_walking:    [0,4, 8, 13,18,24,30],
+  /* Plank (Sekunden) */
+  plank:               [0,20,40, 60, 90, 120, 180],
 };
-const LM_DEFAULT =    [0,20,40, 65, 95, 130, 175]; /* Fallback für custom Übungen */
+const LM_DEFAULT =    [0,10,18, 26, 34, 42, 52]; /* Fallback für neu hinzugefügte custom Übungen, leichter kalibriert als früher */
 
 function lmThresholds(exId){
   return LM_THRESHOLDS[exId] || LM_DEFAULT;
@@ -3248,6 +3314,28 @@ function lmPaceCompare(targetRankIdx){
     if(h && h.rankDates[targetRankIdx]) out.push({exId:id, name:S.exercises[id].name, sessionsIn:h.rankDates[targetRankIdx].sessionsIn, date:h.rankDates[targetRankIdx].date});
   }
   return out.sort((a,b)=>a.sessionsIn-b.sessionsIn);
+}
+/* Lunge-Leiter: automatischer Aufstieg zur nächsten Stufe (Home-Gym-Erweiterung #1) */
+function checkLungeLadderAdvance(){
+  const activeId = LUNGE_LADDER.find(id => (S.plan.legs||[]).includes(id));
+  if (!activeId) return null;
+  const idx = LUNGE_LADDER.indexOf(activeId);
+  if (idx >= LUNGE_LADDER.length-1) return null; /* schon auf L4 */
+  const ex = S.exercises[activeId];
+  const last2 = entriesFor(activeId, 2);
+  if (last2.length < 2) return null;
+  const bothMaxed = last2.every(({entry}) => entry.sets.length && entry.sets.every(s=>(s.reps||0)>=ex.repMax));
+  if (!bothMaxed) return null;
+  const nextId = LUNGE_LADDER[idx+1];
+  const planIdx = S.plan.legs.indexOf(activeId);
+  if (S.plan.legs.includes(nextId)) {
+    /* Nächste Stufe schon manuell im Plan → aktuelle nur entfernen, kein Duplikat erzeugen */
+    S.plan.legs.splice(planIdx, 1);
+  } else {
+    S.plan.legs[planIdx] = nextId;
+  }
+  save();
+  return { from:ex.name, to:S.exercises[nextId].name };
 }
 /* Prüfe nach jeder Session ob neue Ränge erreicht wurden → Toast + Trophy */
 function checkLiftMasteryRankUps(){
@@ -3991,7 +4079,7 @@ function startWithMood(type,mood){
     S.draft={type,date:todayStr(),startedAt:Date.now(),mood,
       entries:S.plan[type].map(exId=>{
         const sg=suggest(exId);
-        return{exerciseId:exId,sets:sg.sets.map(s=>({...s,done:false})),notes:"",hint:sg.hint,hintCls:sg.cls,goal:sg.goal};
+        return{exerciseId:exId,sets:sg.sets.map(s=>({...s,done:false})),notes:"",hint:sg.hint,hintCls:sg.cls,goal:sg.goal,chains:false};
       })};
     save();
   } else { S.draft.mood=mood; save(); }
@@ -4115,6 +4203,8 @@ function cycleWeek(){
   const days=Math.floor((new Date(todayStr()+"T12:00:00")-new Date(start+"T12:00:00"))/86400000);
   return (Math.floor(days/7)%4)+1; // 1–4 (4 = Deload)
 }
+/* Home-Gym-Erweiterung #7: Ketten-Woche für Kabelübungen (Woche 3 des 4-Wochen-Zyklus) */
+function isChainWeek(){ return cycleWeek()===3; }
 
 /* ===== v4.0 WELLE H: SMART-DELOAD ===== */
 function checkSmartDeload(){
@@ -4204,6 +4294,19 @@ function prRecoveryInsight(){
   const diff=+(prAvg-normAvg).toFixed(0);
   if(Math.abs(diff)<3) return null;
   return {prAvg:Math.round(prAvg), normAvg:Math.round(normAvg), diff};
+}
+/* Home-Gym-Erweiterung #4: Recovery an Trainingstagen vs. Ruhetagen, letzte 14 Tage */
+function recoveryLoadInfo(){
+  const cutoff = addDays(todayStr(), -14);
+  const metrics = S.bodyweight.metrics.filter(m=>m.date>=cutoff && m.date<=todayStr() && m.recoveryScore!=null);
+  if(metrics.length<5) return null;
+  const trainDates = new Set(S.sessions.filter(s=>s.date>=cutoff && s.date<=todayStr()).map(s=>s.date));
+  const trainRec=[], restRec=[];
+  for(const m of metrics){ (trainDates.has(m.date)?trainRec:restRec).push(m.recoveryScore); }
+  if(trainRec.length<3 || restRec.length<2) return null;
+  const avg=arr=>arr.reduce((a,b)=>a+b,0)/arr.length;
+  const trainAvg=Math.round(avg(trainRec)), restAvg=Math.round(avg(restRec));
+  return { trainAvg, restAvg, warn: trainAvg<55 && (restAvg-trainAvg)>=10 };
 }
 
 /* ===== v4.0 WELLE H: LEISTUNGS-WETTERVORHERSAGE ===== */
