@@ -199,6 +199,29 @@ svg{max-width:100%;}
 .kpi{background:var(--bg); padding:11px 11px 12px; text-align:center;}
 .kpi b{font:700 23px var(--mono); display:block;}
 .kpi span{font:9.5px var(--mono); color:var(--dim); font-weight:700; letter-spacing:.14em; text-transform:uppercase;}
+/* rank header — foil frame + HUD panel + marble orb */
+.rankhud-frame{padding:2px; border-radius:22px;
+  background:linear-gradient(135deg,#5FE3B0,#1F7A5E 28%,#E8C547 52%,#1F7A5E 76%,#5FE3B0); margin-bottom:12px;}
+.rankhud{position:relative; border-radius:20px; overflow:hidden; padding:14px 15px 15px;
+  background:linear-gradient(172deg,#0F1C16,#070C0A);}
+.rankhud .sheen{position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(100deg,transparent 38%,rgba(255,255,255,.1) 50%,transparent 62%);
+  animation:sheen 7s ease-in-out infinite;}
+.rankhud-body{position:relative; z-index:1; display:flex; align-items:center; gap:14px;}
+.rankorb-btn{flex:none; width:70px; height:70px; border-radius:50%; border:none; padding:0; position:relative; overflow:hidden; cursor:pointer;}
+.rankorb-btn .spec{position:absolute; top:9px; left:14px; width:22px; height:12px; border-radius:50%;
+  background:rgba(255,255,255,.78); filter:blur(2px);}
+.rankorb-btn .osheen{position:absolute; inset:0; background:linear-gradient(100deg,transparent 40%,rgba(255,255,255,.5) 50%,transparent 60%);
+  animation:sheen 4.5s ease-in-out infinite;}
+.rankhud-right{flex:1; min-width:0;}
+.rankhud-kicker{display:flex; align-items:center; justify-content:space-between; font:9.5px var(--mono); letter-spacing:.14em; color:var(--dim); text-transform:uppercase;}
+.prestige-pill{font:9.5px var(--mono); border:1px solid rgba(232,197,71,.35); border-radius:999px; padding:2px 8px; color:var(--gold);}
+.rankhud-name{font-family:var(--display); font-size:28px; font-weight:400; color:var(--mint); text-shadow:0 0 20px rgba(95,227,176,.45); margin:2px 0 6px;}
+.xpseg{display:flex; gap:3px; margin-bottom:6px;}
+.xpseg .blk{flex:1; height:11px; border-radius:2px; background:rgba(95,227,176,.14);}
+.xpseg .blk.on{background:var(--mint); box-shadow:0 0 8px rgba(95,227,176,.65);}
+.rankhud-xprow{display:flex; justify-content:space-between; font:9.5px var(--mono); color:var(--dim);}
+@media (prefers-reduced-motion: reduce){ .rankhud .sheen, .rankorb-btn .osheen{animation:none;} }
 /* CSS-only streak flame */
 .flame{position:relative; display:inline-block; width:10px; height:14px; vertical-align:middle;}
 .flame::before, .flame::after{content:""; position:absolute; border-radius:60% 60% 50% 50% / 70% 70% 40% 40%;}
@@ -218,12 +241,23 @@ svg{max-width:100%;}
 }
 .marble-polishing{animation:marble-polish 1.4s ease-out forwards;}
 /* Rang-Aufstiegs-Overlay */
-.rankup-overlay{position:fixed;inset:0;z-index:9999;background:rgba(6,7,8,.92);
+.rankup-overlay{position:fixed;inset:0;z-index:9999;background:rgba(6,14,11,.86); backdrop-filter:blur(6px);
   display:flex;align-items:center;justify-content:center;padding:28px;animation:fadein .3s ease;}
-.rankup-inner{text-align:center;max-width:300px;width:100%;}
-.rankup-lbl{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--mut);margin:18px 0 4px;}
-.rankup-name{font-size:40px;font-weight:800;letter-spacing:-.02em;margin-bottom:10px;}
-.rankup-sub{color:var(--mut);font-size:14px;margin-bottom:24px;line-height:1.5;}
+.rankup-inner{position:relative; text-align:center;max-width:300px;width:100%; animation:ceremony .5s ease;}
+.rankup-inner::before{content:""; position:absolute; top:-14px; left:50%; transform:translateX(-50%);
+  width:170px; height:170px; border-radius:50%; z-index:-1;
+  background:conic-gradient(rgba(95,227,176,.3) 0deg 20deg,transparent 20deg 40deg,rgba(232,197,71,.28) 40deg 60deg,transparent 60deg 80deg,rgba(95,227,176,.3) 80deg 100deg,transparent 100deg 120deg,rgba(232,197,71,.28) 120deg 140deg,transparent 140deg 160deg,rgba(95,227,176,.3) 160deg 180deg,transparent 180deg 200deg,rgba(232,197,71,.28) 200deg 220deg,transparent 220deg 240deg,rgba(95,227,176,.3) 240deg 260deg,transparent 260deg 280deg,rgba(232,197,71,.28) 280deg 300deg,transparent 300deg 320deg,rgba(95,227,176,.3) 320deg 340deg,transparent 340deg 360deg);
+  animation:spin 14s linear infinite;}
+.rankup-lbl{font:700 11px var(--mono); letter-spacing:.24em; text-transform:uppercase; color:var(--mint);
+  margin:18px 0 4px; animation:rise .5s .2s both;}
+.rankup-name{font-family:var(--display); font-weight:400; font-size:40px; letter-spacing:-.02em; margin-bottom:10px;
+  animation:rise .5s .32s both;}
+.rankup-sub{color:var(--mut);font-size:14px;margin-bottom:24px;line-height:1.5; max-width:22ch; margin-left:auto; margin-right:auto;
+  animation:rise .5s .44s both;}
+.rankup-inner .btn{animation:rise .5s .56s both;}
+@media (prefers-reduced-motion: reduce){
+  .rankup-inner, .rankup-inner::before, .rankup-lbl, .rankup-name, .rankup-sub, .rankup-inner .btn{animation:none;}
+}
 .marble-float{animation:mfloat 4s ease-in-out infinite;}
 .marble-pulse{animation:mfloat 3s ease-in-out infinite, mpulse 2.4s ease-in-out infinite;}
 .marble-beast{animation:mfloat 2.4s ease-in-out infinite, mpulse 1.6s ease-in-out infinite;}
@@ -3559,6 +3593,12 @@ function spawnConfetti(){
   document.body.appendChild(wrap);
   setTimeout(()=>wrap.remove(), 3200);
 }
+function rankOrbHtml(r, onclickAttr){
+  return `<button class="rankorb-btn" ${onclickAttr||""} style="
+    background:radial-gradient(circle at 32% 26%,${r.hi} 0%,${r.core} 30%,${r.edge} 66%,${r.edge} 100%);
+    box-shadow:0 0 0 2px ${r.glow}, 0 0 26px ${r.glow}, inset 0 -7px 13px rgba(0,0,0,.5);">
+    <span class="spec"></span><span class="osheen"></span></button>`;
+}
 function marbleSVG(rank, size, animClass, skin, accessories=""){
   const id = rank.key, s=size, c=s/2;
   const grad = rank.kind==="iridescent"
@@ -4198,16 +4238,29 @@ function vMarble(){
   /* v4.0 Welle G: Milestone */
   const _milestoneHtml=(()=>{ try{ return milestoneCountdownHtml(g); }catch(e){ return ""; } })();
 
+  const rankIdx = RANKS.indexOf(r)+1;
+  const xpSegs = Array.from({length:8},(_,i)=>`<div class="blk${i<Math.round(g.prog*8)?" on":""}"></div>`).join("");
   return `<h1>Murmel${ikone?' <span class="badge" style="font-size:11px;background:rgba(10,132,255,.2);color:var(--pull)">Ikone</span>':''}</h1>
   <p class="sub">Dein Trainings-Level</p>
   ${eggBanner}
+  <div class="rankhud-frame"><div class="rankhud">
+    <span class="sheen"></span>
+    <div class="rankhud-body">
+      ${rankOrbHtml(r, `onclick="showRankUpOverlay(RANKS[${RANKS.indexOf(r)}])"`)}
+      <div class="rankhud-right">
+        <div class="rankhud-kicker"><span>RANG ${String(rankIdx).padStart(2,"0")}/${RANKS.length}</span>${g.prestige?`<span class="prestige-pill">★${g.prestige}</span>`:""}</div>
+        <div class="rankhud-name">${r.name}</div>
+        <div class="xpseg">${xpSegs}</div>
+        <div class="rankhud-xprow"><span>XP ${fmt(g.effXp)}</span><span>${g.next?g.next.name.toUpperCase()+" "+fmt(g.next.min):"MAX"}</span></div>
+      </div>
+    </div>
+  </div></div>
   <div class="card">
     <div class="preview-marbles">
       <div style="text-align:center"><div class="marble-stage" style="padding:6px 0">${marbleSVG(r, 132, g.state.anim, skin, acc)}</div></div>
       ${nextPrev}
     </div>
-    <div class="rank-name">${r.name}${g.prestige?` <span style="color:var(--gold)">★${g.prestige}</span>`:""}</div>
-    <div class="rank-state">${g.state.name} · ${g.state.desc}</div>
+    <div class="rank-state" style="margin-top:8px">${g.state.name} · ${g.state.desc}</div>
     <div class="quote" style="margin-top:8px">„${murmelQuote(g)}"</div>
     <div class="row" style="margin-top:14px"><div class="grow">
       <div class="row"><span class="lbl grow">Rang: ${r.name}</span><span class="mut num">${g.next?"→ "+g.next.name:"MAX"}</span></div>
