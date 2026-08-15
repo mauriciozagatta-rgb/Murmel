@@ -366,9 +366,11 @@ const SEED = {
   cycle: { position: 0, completedCycles: 0, variant: "A" },
   bodyweight: { goalKg: 85, log: [], metrics: [] },
   plan: {
-    push: ["db_flachbank","db_schulterdruecken","db_lateral_raise","cable_fly","cable_trizeps"],
-    pull: ["cable_latzug","cable_rudern","db_rudern_einarmig","cable_facepulls","cable_curl","db_hammercurl"],
-    legs: ["db_goblet_squat","db_rdl","db_stepup","lunge_l1_split_squat","cable_wadenheben","plank"]
+    push_main: ["db_flachbank","db_schulterdruecken","cable_fly","cable_trizeps","db_lateral_raise"],
+    push_bonus: [],
+    pull_main: ["cable_latzug","cable_rudern","db_rudern_einarmig","cable_facepulls","db_hammercurl"],
+    pull_bonus: [],
+    legs: ["db_goblet_squat","db_rdl","lunge_l1_split_squat","cable_wadenheben"]
   },
   exercises: {
     db_flachbank:        { name:"Flachbank KH-Drücken",       perSide:false, unit:"kg", repMin:8,  repMax:12, increment:2,  muscle:"chest",
@@ -538,6 +540,7 @@ function migrate(raw) {
     s.cycleAt = histCycles;
     if (s.type === HIST_SEQ[histPos]) histPos = (histPos+1) % HIST_SEQ.length;
     else histPos = (HIST_SEQ.indexOf(s.type)+1) % HIST_SEQ.length;
+    s.cycleCompleted = (histPos===0);
     if (histPos===0) histCycles++;
   }
   raw.cycle = { position: histPos, completedCycles: histCycles, variant: "A" };
@@ -588,14 +591,15 @@ function cycleAdvance(type, variant){
   const deviation = idx!==S.cycle.position;
   const cycleAt = S.cycle.completedCycles;
   const newPos = (idx>=0 ? idx : S.cycle.position) + 1;
-  if (newPos>=seq.length){
+  const completed = newPos>=seq.length;
+  if (completed){
     S.cycle.position = 0;
     S.cycle.completedCycles++;
     if ((S.settings.cycleLength||4)>3) S.cycle.variant = (S.cycle.variant==="A") ? "B" : "A";
   } else {
     S.cycle.position = newPos;
   }
-  return { deviation, cycleAt };
+  return { deviation, cycleAt, completed };
 }
 
 /* ================= STATE & STORAGE ================= */
@@ -1050,7 +1054,7 @@ function suggest(exId){
   const e1 = Math.max(...sets.map(s=>e1rm(s.kg||0,s.reps||0)));
   let kg, outSets, hint, cls="", goal="";
   /* v4.0: Deload-Modus (Plateau ODER Mikro-Periodisierungs-Woche 4 ODER Smart-Deload aktiv) */
-  const isDeloadWeek = cycleWeek()===4 || !!(S.gami&&S.gami.deloadActive);
+  const isDeloadWeek = !!(S.gami&&S.gami.deloadActive);
   if (pl.deload || isDeloadWeek){
     const reason=isDeloadWeek&&!pl.deload?"Deload-Woche (Zyklus Woche 4)":"Plateau: "+pl.sessions+"× kein neuer Höchstwert";
     kg = roundToInc(baseKg*0.9, ex.increment);
@@ -1409,6 +1413,7 @@ function vHome(){
   const bwLog = [...S.bodyweight.log].sort((a,b)=>a.date<b.date?1:-1);
   const bw = bwLog[0], prevBw = bwLog[1];
   const due = dueType();
+  const dueFull = cycleNextDue();
   const g = computeGami();
   const _wc = weeklyChallenge(g), _wcProg = weeklyChallengeProgress(_wc, g);
   const _wcMult = challengeMultiplier();
@@ -1463,7 +1468,7 @@ function vHome(){
     return `<div class="card typecard ${TYPES[t].cls} ${isDue?"due-card":""}" onclick="startSession('${t}')">
       <div class="row"><div class="grow">
         <div class="tname"><span class="dot"></span>${TYPES[t].label}${isDue?'<span class="duebadge">heute dran</span>':""}</div>
-        <div class="mut" style="margin-top:3px">${S.plan[t].length} Übungen · zuletzt ${last?dShort(last.date):"–"}</div>
+        <div class="mut" style="margin-top:3px">${planExercisesAll(t).length} Übungen · zuletzt ${last?dShort(last.date):"–"}</div>
       </div><button class="btn accent">Starten</button></div></div>`;
   }).join("");
 
@@ -1504,9 +1509,10 @@ function vHome(){
       </div></div>` : ""; })()}
   ${S.draft ? `<div class="card ${TYPES[S.draft.type].cls}" style="border-color:var(--accB)">
       <div class="row"><div class="grow"><b>Laufende ${TYPES[S.draft.type].label}-Session</b><div class="mut">${dLong(S.draft.date)}</div></div>
-      <button class="btn accent" onclick="go('session')">Fortsetzen</button></div></div>` : todaysPlanCard(due)}
+      <button class="btn accent" onclick="go('session')">Fortsetzen</button></div></div>` : todaysPlanCard(dueFull)}
   ${typeCards}
   ${_deloadSuggested?`<div class="backup" style="border-color:var(--hold)"><div class="grow">😴 Murmel empfiehlt eine Deload-Woche — Recovery 3+ Tage niedrig.</div><button onclick="S.gami.deloadActive=true;save();render()">Aktivieren</button></div>`:""}
+  ${S.gami.deloadActive?`<div class="backup" style="border-color:var(--hold)"><div class="grow">📉 Deload aktiv — heute ~10% weniger Gewicht, Fokus auf Technik.</div><button onclick="dismissDeload()">Beenden</button></div>`:""}
   ${(()=>{
     const insights=[];
     if(_multiPlateau.length>=3) insights.push(`<div class="hint hold">🔁 <b>${_multiPlateau.length} Übungen stagnieren</b> (${_multiPlateau.slice(0,3).join(", ")}${_multiPlateau.length>3?"…":""}). Eine Deload-Woche könnte den Knoten lösen.</div>`);
@@ -1552,8 +1558,9 @@ function addBw(){
   save(); render(); toast("Gewicht gespeichert ✓");
 }
 /* v4.1: Heutiger Plan — fällige Session mit Vorschau der Übungen + Vorschlagsgewichten */
-function todaysPlanCard(due){
-  const T=TYPES[due]; const planIds=S.plan[due]||[];
+function todaysPlanCard(dueFull){
+  const due=dueFull.type, variant=dueFull.variant;
+  const T=TYPES[due]; const planIds=planExercisesFor(due,variant);
   if(!planIds.length) return "";
   const rows=planIds.slice(0,6).map(id=>{
     const ex=S.exercises[id]; if(!ex) return "";
@@ -1578,10 +1585,10 @@ function todaysPlanCard(due){
   return `<div class="card ${T.cls}" style="border-color:var(--accB)">
     <div class="row" style="align-items:center"><div class="grow">
       <div class="lbl" style="color:${T.color}">▶ Heute dran</div>
-      <b style="font-size:18px">${T.label}</b>
+      <b style="font-size:18px">${T.label}${variant==="bonus"?' <span class="chip">Bonus</span>':""}</b>
       <div class="mut" style="font-size:12px;margin-top:1px">${planIds.length} Übungen · Vorschlagswerte</div>
     </div>
-    <button class="btn accent ${T.cls}" onclick="startSession('${due}')">Starten</button></div>
+    <button class="btn accent ${T.cls}" onclick="startSession('${due}','${variant}')">Starten</button></div>
     <div style="margin-top:8px">${rows}</div>
     ${setupHtml}
     ${chainHint}
@@ -1598,14 +1605,15 @@ function forecastStart(date){
 
 /* ---------- ACTIVE SESSION ---------- */
 let _startArm=false, _cancelArm=false;
-function startSession(type){
+function startSession(type, variant){
+  variant = variant||"main";
   if (S.draft && S.draft.type!==type){
     if (!_startArm){ _startArm=true; toast("Laufende Session wird verworfen – nochmal tippen");
       setTimeout(()=>_startArm=false, 3000); return; }
     _startArm=false;
   }
   if (!S.draft || S.draft.type!==type){
-    showMoodPicker(type); return;
+    showMoodPicker(type, variant); return;
   }
   go("session");
 }
@@ -1872,9 +1880,10 @@ function doFinish(mode){
   if (!entries.length){ toast("Keine Sätze erfasst"); finishAsk=false; render(); return; }
   const durMin = d.startedAt ? Math.max(1, Math.round((Date.now()-d.startedAt)/60000)) : null;
   const newId = "s"+Date.now();
-  const _cyc = (d.type==="cardio") ? { deviation:false, cycleAt:S.cycle.completedCycles } : cycleAdvance(d.type, d.variant||"main");
-  S.sessions.push({ id:newId, type:d.type, variant:d.variant||"main", date:d.date, entries, durationMin:durMin, deviation:_cyc.deviation, cycleAt:_cyc.cycleAt });
+  const _cyc = (d.type==="cardio") ? { deviation:false, cycleAt:S.cycle.completedCycles, completed:false } : cycleAdvance(d.type, d.variant||"main");
+  S.sessions.push({ id:newId, type:d.type, variant:d.variant||"main", date:d.date, entries, durationMin:durMin, deviation:_cyc.deviation, cycleAt:_cyc.cycleAt, cycleCompleted:_cyc.completed });
   S.draft=null; finishAsk=false; save(); timerStop(false); releaseWake(); stopSessTimer();
+  checkCycleDeloadTrigger();
   checkAndClaimDailyQuest();
   const hl=sessionHighlights(newId);
   /* v1.8: Kontext-Easter-Eggs prüfen und einlösen */
@@ -2665,7 +2674,7 @@ function entryPR(ex, e){
 function computeGami(){
   const sorted = [...S.sessions].filter(s=>s.date<=todayStr())
     .sort((a,b)=> a.date<b.date?-1 : a.date>b.date?1 : (a.id<b.id?-1:1));
-  const prevE1={}, bestPR={}, weekCnt={};
+  const prevE1={}, bestPR={};
   let total=0, totals={consistency:0, progression:0, pr:0, weekly:0};
   let coinsEarned=0;
   const per=[];
@@ -2681,8 +2690,7 @@ function computeGami(){
       prevE1[e.exerciseId] = curE1;
       if (b===undefined || pr.val > b.val || (Math.abs(pr.val-b.val)<1e-6 && pr.reps>b.reps)) bestPR[e.exerciseId]=pr;
     }
-    const wk=isoWeek(s.date); weekCnt[wk]=(weekCnt[wk]||0)+1;
-    if (weekCnt[wk]===S.settings.weeklyGoal) bd.weekly=50;
+    if (s.cycleCompleted) bd.weekly=50;
     const pts = bd.consistency+bd.progression+bd.pr+bd.weekly;
     total += pts;
     /* Münzen (v3.0): Session +5, Progression +2/Event, PR +15/Event, Wochenziel +20 */
@@ -2859,21 +2867,20 @@ function achievementsList(g=computeGami()){
   ];
 }
 function weeklyQuest(g=computeGami()){
-  const wk=isoWeek(todayStr());
+  const wk=S.cycle.completedCycles;
   const pool=[
     {key:"improve3",name:"Steigere 3 Übungen",desc:"Bei 3 Übungen mehr als zuletzt schaffen.",target:3},
     {key:"days3",name:"3 Trainingstage",desc:"An 3 verschiedenen Tagen trainieren.",target:3},
     {key:"pr1",name:"Knacke einen PR",desc:"Eine neue Bestleistung aufstellen.",target:1},
-    {key:"goal",name:"Wochenziel erreichen",desc:S.settings.weeklyGoal+" Sessions diese Woche.",target:S.settings.weeklyGoal},
+    {key:"cycle",name:"Zyklus abschließen",desc:"Einen vollen Trainingszyklus abschließen.",target:1},
   ];
-  const wnum=parseInt((wk.split("-W")[1]||"0"),10);
-  const q=pool[wnum % pool.length];
-  const tw=g.per.filter(p=>isoWeek(p.date)===wk);
+  const q=pool[wk % pool.length];
+  const tw=g.per.filter(p=>{ const s=S.sessions.find(x=>x.id===p.id); return s && s.cycleAt===wk; });
   let prog=0;
   if(q.key==="improve3") prog=tw.reduce((a,p)=>a+p.bd.progression/5,0);
   else if(q.key==="days3") prog=new Set(tw.map(p=>p.date)).size;
   else if(q.key==="pr1") prog=tw.reduce((a,p)=>a+p.bd.pr/25,0);
-  else prog=tw.length;
+  else prog=(S.cycle.completedCycles>wk)?1:0;
   prog=Math.round(prog);
   return {...q, prog:Math.min(prog,q.target), raw:prog, done:prog>=q.target};
 }
@@ -3071,7 +3078,7 @@ function totalXp(g){ return g.rankXp!=null ? g.rankXp : g.total + sessionXpBonus
 /* ---- FÄHIGKEITEN-BAUM ---- */
 /* Niedrigster LM-Rang-Index (0–6) einer PPL-Kategorie — für Fähigkeiten-Baum-Gates */
 function lmCategoryMinRank(type){
-  const exIds=(S.plan[type]||[]).filter(id=>{ const ex=S.exercises[id]; return ex && ex.unit!=="seconds"; });
+  const exIds=planExercisesAll(type).filter(id=>{ const ex=S.exercises[id]; return ex && ex.unit!=="seconds"; });
   if(!exIds.length) return 0;
   return Math.min(...exIds.map(id=>lmRankFor(id,lmBestMetric(id)).idx));
 }
@@ -4061,20 +4068,19 @@ function doPrestige(){
 /* ===== v3.0: WELLE C — DAILY QUEST ===== */
 /* ===== v4.0 WELLE E: WOCHEN-CHALLENGE (ersetzt Daily Quest) ===== */
 function weeklyChallenge(g){
-  const wk=isoWeek(todayStr()); const gc=S.gami;
+  const wk=S.cycle.completedCycles; const gc=S.gami;
   let wc=gc.weekChallenge;
   if(!wc||wc.weekKey!==wk){
-    const wnum=parseInt((wk.split("-W")[1]||"0"),10);
-    const def=WEEKLY_CHALLENGE_POOL[wnum%WEEKLY_CHALLENGE_POOL.length];
+    const def=WEEKLY_CHALLENGE_POOL[wk%WEEKLY_CHALLENGE_POOL.length];
     wc={weekKey:wk,key:def.key,name:def.name,desc:def.desc,target:def.target,done:false,claimed:false};
     gc.weekChallenge=wc; save();
   }
   return wc;
 }
 function weeklyChallengeProgress(wc,g){
-  const wk=isoWeek(todayStr());
-  const tw=g.per.filter(p=>isoWeek(p.date)===wk);
-  const tws=S.sessions.filter(s=>isoWeek(s.date)===wk);
+  const inWindow = s => s.cycleAt===wc.weekKey;
+  const tw=g.per.filter(p=>{ const s=S.sessions.find(x=>x.id===p.id); return s && inWindow(s); });
+  const tws=S.sessions.filter(inWindow);
   if(wc.key==="improve3") return tw.reduce((n,p)=>n+(p.bd.progression>0?1:0),0);
   if(wc.key==="pr2") return tw.reduce((n,p)=>n+Math.round(p.bd.pr/25),0);
   if(wc.key==="fullppl") return new Set(tws.map(s=>s.type)).size;
@@ -4149,7 +4155,7 @@ function claimChainStep(){
 /* ===== v4.0 WELLE E: MULTI-TIER BOSS ===== */
 /* Hilfsfunktion: Schwächste PPL-Kategorie nach mittlerem Lift-Mastery-Rang */
 function lmWeakestCategory(){
-  const planMap={ push: S.plan.push||[], pull: S.plan.pull||[], legs: S.plan.legs||[] };
+  const planMap={ push: planExercisesAll("push"), pull: planExercisesAll("pull"), legs: planExercisesAll("legs") };
   let weakest=null, lowestAvg=Infinity;
   for(const [type, exIds] of Object.entries(planMap)){
     const kgIds=exIds.filter(id=>{ const ex=S.exercises[id]; return ex && ex.unit!=="seconds"; });
@@ -4252,27 +4258,29 @@ function sessionReplayHtml(sess){
 }
 
 /* ===== v4.0 WELLE F: TON-ZONE ===== */
-function showMoodPicker(type){
+function showMoodPicker(type, variant){
+  variant = variant||"main";
   const existing=document.getElementById("mood-picker"); if(existing) existing.remove();
   const el=document.createElement("div");
   el.id="mood-picker"; el.className="rankup-overlay";
   el.innerHTML=`<div class="rankup-inner" style="max-width:280px">
     <div class="rankup-lbl">Wie fühlst du dich heute?</div>
     <div style="display:flex;gap:14px;justify-content:center;margin:18px 0">
-      <button class="btn" style="font-size:28px;padding:14px 18px" onclick="startWithMood('${type}','ready')">🔥</button>
-      <button class="btn" style="font-size:28px;padding:14px 18px" onclick="startWithMood('${type}','ok')">😐</button>
-      <button class="btn" style="font-size:28px;padding:14px 18px" onclick="startWithMood('${type}','tired')">😴</button>
+      <button class="btn" style="font-size:28px;padding:14px 18px" onclick="startWithMood('${type}','ready','${variant}')">🔥</button>
+      <button class="btn" style="font-size:28px;padding:14px 18px" onclick="startWithMood('${type}','ok','${variant}')">😐</button>
+      <button class="btn" style="font-size:28px;padding:14px 18px" onclick="startWithMood('${type}','tired','${variant}')">😴</button>
     </div>
     <div class="row" style="justify-content:center;gap:24px;font-size:11px;color:var(--mut)"><span>Bereit</span><span>Okay</span><span>Müde</span></div>
     <button class="btn full" style="margin-top:16px" onclick="document.getElementById('mood-picker')?.remove()">Überspringen</button>
   </div>`;
   document.body.appendChild(el);
 }
-function startWithMood(type,mood){
+function startWithMood(type,mood,variant){
+  variant = variant||"main";
   try{ document.getElementById("mood-picker")?.remove(); }catch(e){}
   if(!S.draft||S.draft.type!==type){
-    S.draft={type,date:todayStr(),startedAt:Date.now(),mood,
-      entries:S.plan[type].map(exId=>{
+    S.draft={type,variant,date:todayStr(),startedAt:Date.now(),mood,
+      entries:planExercisesFor(type,variant).map(exId=>{
         const sg=suggest(exId);
         return{exerciseId:exId,sets:sg.sets.map(s=>({...s,done:false})),notes:"",hint:sg.hint,hintCls:sg.cls,goal:sg.goal,chains:false};
       })};
@@ -4416,6 +4424,30 @@ function multiPlateauInfo(){
     if(pl.plateau) stalled.push(S.exercises[id].name);
   }
   return stalled;
+}
+function planDayNoProgressCount(planKey){
+  const ids = S.plan[planKey]||[];
+  let n=0;
+  for (const id of ids){
+    const ex=S.exercises[id]; if(!ex || ex.unit==="seconds") continue;
+    if (plateauInfo(id).sessions>=4) n++;
+  }
+  return n;
+}
+function checkCycleDeloadTrigger(){
+  if (S.gami.deloadActive) return;
+  if (S.gami.deloadDismissedAtCycle===S.cycle.completedCycles) return;
+  const stalledPlanDay = Object.keys(S.plan).some(k=>planDayNoProgressCount(k)>=3);
+  const cadenceDue = S.cycle.completedCycles>0 && S.cycle.completedCycles%6===0 && S.gami.lastDeloadAtCycle!==S.cycle.completedCycles;
+  if (stalledPlanDay || cadenceDue){
+    S.gami.deloadActive = true;
+    S.gami.lastDeloadAtCycle = S.cycle.completedCycles;
+  }
+}
+function dismissDeload(){
+  S.gami.deloadActive = false;
+  S.gami.deloadDismissedAtCycle = S.cycle.completedCycles;
+  save(); render();
 }
 /* v4.1 #9: Accessory-Vorschlag für schwächste Kategorie */
 const ACCESSORY_SUGGESTIONS = {
@@ -4843,7 +4875,13 @@ function handleCsvDrop(event){
   reader.onerror=()=>{ if($("bodyCsvResult")) $("bodyCsvResult").textContent="Datei konnte nicht gelesen werden."; };
   reader.readAsText(file);
 }
-function planMembership(t,id){ return (S.plan[t]||[]).includes(id); }
+function planKeyFor(type, variant){ return type==="legs" ? "legs" : type+"_"+(variant||"main"); }
+function planExercisesFor(type, variant){ return S.plan[planKeyFor(type,variant)] || []; }
+function planExercisesAll(type){
+  if (type==="legs") return S.plan.legs||[];
+  return [...new Set([...(S.plan[type+"_main"]||[]), ...(S.plan[type+"_bonus"]||[])])];
+}
+function planMembership(t,id){ return planExercisesFor(t,"main").includes(id); }
 function vExEdit(){
   const id=viewArg, ex=S.exercises[id]; if(!ex) return vSettings();
   const sec = ex.unit==="seconds";
@@ -4910,6 +4948,10 @@ function vExEdit(){
     <div class="row" style="margin-top:10px">
       ${Object.keys(TYPES).map(t=>`<button class="btn grow ${TYPES[t].cls} ${inPlan(t)?"accent":""}"
         onclick="togglePlan('${t}','${id}')">${TYPES[t].label}</button>`).join("")}
+    </div>
+    <div class="row" style="margin-top:8px">
+      ${["push","pull"].map(t=>`<button class="btn grow ghost ${(S.plan[planKeyFor(t,'bonus')]||[]).includes(id)?"accent":""}"
+        onclick="toggleBonusPlan('${t}','${id}')">+ ${TYPES[t].label} Bonus</button>`).join("")}
     </div></div>`;
 }
 function setEquipment(id, eq){
@@ -4922,7 +4964,17 @@ function stepPulley(id, dir){
   ex.pulleyPos=Math.max(1,Math.min(18,cur+dir)); save(); render();
 }
 function togglePlan(t,id){
-  const p=S.plan[t], i=p.indexOf(id);
+  const key=planKeyFor(t,"main");
+  const p=(S.plan[key]=S.plan[key]||[]);
+  const i=p.indexOf(id);
+  if (i>=0) p.splice(i,1); else p.push(id);
+  save(); render();
+}
+function toggleBonusPlan(t,id){
+  if (t==="legs") return;
+  const key=planKeyFor(t,"bonus");
+  const p=(S.plan[key]=S.plan[key]||[]);
+  const i=p.indexOf(id);
   if (i>=0) p.splice(i,1); else p.push(id);
   save(); render();
 }
