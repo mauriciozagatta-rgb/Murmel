@@ -417,11 +417,11 @@ const SEED = {
       equipment:"cable", pulleyPos:1, ratio:"1:1", attachment:"straight-bar", benchPos:null,
       cue:"Rolle Position 1 von 18 (ganz unten), Seil oder Stange einhängen.",
       howTo:"Rolle auf niedrigste Position. Griff (Seil oder gerade Stange) mit Untergriff fassen, Ellbogen bleiben am Körper fixiert, nur Unterarm bewegt sich nach oben. Oben kurz zusammendrücken, kontrolliert ablassen bis fast gestreckt." },
-    db_hammercurl:        { name:"Hammer Curl (KH)",          perSide:false, unit:"kg", repMin:10, repMax:15, increment:1,    muscle:"biceps",
+    db_hammercurl:        { name:"Hammer Curl (KH)",          perSide:false, unit:"kg", repMin:10, repMax:15, increment:2,    muscle:"biceps",
       equipment:"db", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"Neutraler Griff (Handflächen zeigen zueinander), Ellbogen fixiert.",
       howTo:"Stehend, KH im neutralen Griff (Daumen nach oben) halten. Ellbogen am Körper fixiert, KH nach oben curlen ohne Schwung aus der Schulter, oben kurz halten, langsam absenken." },
-    db_goblet_squat:      { name:"Goblet Squat (KH, leicht)", perSide:false, unit:"kg", repMin:8,  repMax:12, increment:1,    muscle:"quads",
+    db_goblet_squat:      { name:"Goblet Squat (KH, leicht)", perSide:false, unit:"kg", repMin:8,  repMax:12, increment:2,    muscle:"quads",
       equipment:"db", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"KH senkrecht vor der Brust halten, Ellbogen zwischen die Knie führen.",
       howTo:"Eine KH senkrecht mit beiden Händen vor der Brust halten (oberes Ende). Füße schulterbreit, Zehen leicht nach außen. In die Hocke gehen, so tief wie schmerzfrei möglich – Ellbogen können innen an den Knien entlanggleiten. Ferse bleibt am Boden, Knie in Zehenrichtung. Nur so tief gehen, wie es sich stabil und schmerzfrei anfühlt – Tiefe langsam steigern, nicht das Gewicht." },
@@ -429,7 +429,7 @@ const SEED = {
       equipment:"db", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"Knie nur leicht gebeugt, Hüfte nach hinten schieben, Rücken gerade.",
       howTo:"KH vor den Oberschenkeln halten, mit dem Rücken zur Station stehen ist hier nicht nötig. Knie nur leicht gebeugt, Hüfte nach hinten schieben (Rücken bleibt gerade), bis Dehnung im hinteren Oberschenkel spürbar, dann Hüfte nach vorne zurück in den Stand drücken. Kein Rundrücken." },
-    db_stepup:            { name:"Step-Up (KH, Bank)",        perSide:true,  unit:"kg", repMin:8,  repMax:12, increment:1,    muscle:"quads",
+    db_stepup:            { name:"Step-Up (KH, Bank)",        perSide:true,  unit:"kg", repMin:8,  repMax:12, increment:2,    muscle:"quads",
       equipment:"db", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"Bank auf niedrigste/mittlere Stufe, KH locker an den Seiten.",
       howTo:"Bank auf niedrige oder mittlere Höhe stellen (nicht zu hoch – Knie sollte beim Aufsteigen keinen scharfen Winkel machen). KH in beiden Händen locker halten. Ein Fuß komplett auf die Bank, durch die Ferse nach oben drücken bis der andere Fuß oben ankommt, kontrolliert zurück. Seite wechseln." },
@@ -441,19 +441,19 @@ const SEED = {
       equipment:"bodyweight", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"Ellbogen unter den Schultern, Becken nicht durchhängen lassen.",
       howTo:"Unterarmstütz, Ellbogen direkt unter den Schultern. Körper bildet eine gerade Linie von Kopf bis Ferse – Po nicht hochstrecken, Hüfte nicht durchhängen lassen. Bauch und Gesäß aktiv anspannen, normal weiteratmen." },
-    lunge_l1_split_squat: { name:"Lunge-Leiter L1: Split Squat (Körpergewicht, Bank-Halt)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:1, muscle:"quads",
+    lunge_l1_split_squat: { name:"Lunge-Leiter L1: Split Squat (Körpergewicht, Bank-Halt)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:2, muscle:"quads",
       equipment:"bodyweight", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"Beide Hände an der Bank/Wand zur Balance, kleiner Ausfallschritt, kontrolliert runter.",
       howTo:"Kleinen Schritt nach hinten/vorne in eine Split-Stance, Hände an Bank oder Wand für Balance (nicht zum Abstützen des Gewichts). Langsam in die Knie gehen bis eine leichte, schmerzfreie Dehnung/Beugung entsteht, dann zurück nach oben. Bewusst klein und kontrolliert – hier geht es um Bewegungsqualität, nicht Tiefe." },
-    lunge_l2_reverse:     { name:"Lunge-Leiter L2: Reverse Lunge (KH, leicht)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:1, muscle:"quads",
+    lunge_l2_reverse:     { name:"Lunge-Leiter L2: Reverse Lunge (KH, leicht)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:2, muscle:"quads",
       equipment:"bodyweight", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"Schritt nach hinten statt nach vorne – schont die Knie beim Einstieg.",
       howTo:"Leichte KH an den Seiten. Aus dem Stand einen Schritt nach hinten setzen, hinteres Knie sinkt kontrolliert Richtung Boden (muss nicht aufsetzen), vorderes Knie über dem Fuß. Über die vordere Ferse zurück in den Stand drücken. Nur so tief wie schmerzfrei." },
-    lunge_l3_forward:     { name:"Lunge-Leiter L3: Ausfallschritt vorwärts (KH)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:1, muscle:"quads",
+    lunge_l3_forward:     { name:"Lunge-Leiter L3: Ausfallschritt vorwärts (KH)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:2, muscle:"quads",
       equipment:"bodyweight", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"Großer Schritt nach vorne, Oberkörper aufrecht.",
       howTo:"Leichte KH an den Seiten. Großen Schritt nach vorne, beide Knie beugen sich auf ca. 90°, hinteres Knie schwebt knapp über dem Boden. Über die vordere Ferse zurück in den Stand drücken. Erst wenn L2 zwei Sessions in Folge sauber lief." },
-    lunge_l4_walking:     { name:"Lunge-Leiter L4: Walking Lunge (KH)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:1, muscle:"quads",
+    lunge_l4_walking:     { name:"Lunge-Leiter L4: Walking Lunge (KH)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:2, muscle:"quads",
       equipment:"bodyweight", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"Wie L3, aber durchgehend vorwärts laufend statt zurück in den Stand.",
       howTo:"Leichte KH an den Seiten. Ausfallschritt nach vorne, aber statt zurückzutreten das hintere Bein nach vorne durchschwingen in den nächsten Ausfallschritt – durchgehende Vorwärtsbewegung über den verfügbaren Raum." }
@@ -1048,37 +1048,52 @@ function suggest(exId){
   const sets = last.entry.sets.slice(0,5);             /* Satz-Cap bei 5 */
   const repsArr = sets.map(s=>s.reps||0);
   const baseKg = sets[sets.length-1].kg||0;            /* Arbeitsgewicht = letztes Set */
-  const allMax = repsArr.every(r=>r>=ex.repMax);       /* oberes Range-Ende auf ALLEN Sätzen */
   const belowMin = repsArr.filter(r=>r<ex.repMin).length;
   const pl = plateauInfo(exId);
   const e1 = Math.max(...sets.map(s=>e1rm(s.kg||0,s.reps||0)));
+  const last2 = entriesFor(exId,2);
+  const allMaxStreak = last2.length>=2 && last2.every(e=>{
+    const r=e.entry.sets.slice(0,5).map(s=>s.reps||0); return r.every(x=>x>=ex.repMax);
+  });
+  const belowMinStreak = last2.length>=2 && last2.every(e=>{
+    const r=e.entry.sets.slice(0,5).map(s=>s.reps||0); return r.filter(x=>x<ex.repMin).length>=2;
+  });
+  const ceiling = ex.equipment==="db" ? 36 : ex.equipment==="cable" ? 100 : Infinity;
+  const atCeiling = isFinite(ceiling) && baseKg>=ceiling;
   let kg, outSets, hint, cls="", goal="";
-  /* v4.0: Deload-Modus (Plateau ODER Mikro-Periodisierungs-Woche 4 ODER Smart-Deload aktiv) */
+  /* v4.0: Deload-Modus (Plateau ODER Smart-Deload aktiv) */
   const isDeloadWeek = !!(S.gami&&S.gami.deloadActive);
   if (pl.deload || isDeloadWeek){
-    const reason=isDeloadWeek&&!pl.deload?"Deload-Woche (Zyklus Woche 4)":"Plateau: "+pl.sessions+"× kein neuer Höchstwert";
+    const reason=isDeloadWeek&&!pl.deload?"Deload aktiv":"Plateau: "+pl.sessions+"× kein neuer Höchstwert";
     kg = roundToInc(baseKg*0.9, ex.increment);
     outSets = sets.map(()=>({kg, reps:ex.repMin}));
     hint = reason+" → ~10 % runter, dafür sauber & explosiv.";
     cls = "hold";
     goal = "🎯 Ziel: "+ex.repMin+"–"+ex.repMax+" Reps bei "+fmt(kg)+" kg mit perfekter Technik – dann neu angreifen.";
-  } else if (allMax){
+  } else if (allMaxStreak && atCeiling){
+    kg = baseKg;
+    outSets = sets.map(()=>({kg, reps:ex.repMin}));
+    hint = "🏁 Maximalgewicht erreicht ("+fmt(ceiling)+(ex.equipment==="db"?" kg/Hand":" kg")+") — Rep-Range wird erweitert statt mehr Gewicht.";
+    cls = "up";
+    goal = "🎯 Ziel: "+ex.repMin+"–"+ex.repMax+" Reps bei "+fmt(kg)+" kg.";
+  } else if (allMaxStreak){
     kg = +(baseKg + ex.increment).toFixed(2);
     outSets = sets.map(()=>({kg, reps:ex.repMin}));
-    hint = "🚀 Hoch! +"+fmt(ex.increment)+" kg – du hattest alle Sätze auf "+ex.repMax+"+ Reps.";
+    hint = "🚀 Hoch! +"+fmt(ex.increment)+" kg – 2 Sessions in Folge alle Sätze auf "+ex.repMax+"+ Reps.";
     cls = "up";
-    goal = "🎯 Ziel: mind. "+ex.repMin+" Reps/Satz bei "+fmt(kg)+" kg. Knackst du "+ex.repMax+", geht's nächstes Mal wieder hoch.";
-  } else if (belowMin>=2){
-    kg = roundToInc(baseKg - ex.increment, ex.increment);
+    goal = "🎯 Ziel: mind. "+ex.repMin+" Reps/Satz bei "+fmt(kg)+" kg. Knackst du "+ex.repMax+" erneut, geht's nächstes Mal wieder hoch.";
+  } else if (belowMinStreak){
+    const stepDown = ex.equipment==="cable" ? 5 : ex.increment; /* "-1 DB step (-2kg/hand) or -5kg cable" */
+    kg = roundToInc(baseKg - stepDown, ex.increment);
     outSets = sets.map(()=>({kg, reps:ex.repMin}));
-    hint = "Letztes Mal zu schwer ("+belowMin+" Sätze unter "+ex.repMin+"). Ein Schritt runter, Basis festigen.";
+    hint = "2 Sessions in Folge unter "+ex.repMin+" Reps. Ein Schritt runter, Basis festigen.";
     cls = "hold";
     goal = "🎯 Ziel: stabil "+ex.repMin+"–"+ex.repMax+" Reps bei "+fmt(kg)+" kg, dann wieder rauf.";
   } else {
     kg = baseKg;
     outSets = sets.map(s=>({kg, reps: s.reps||ex.repMin}));    /* Vorbelegung = letzte Reps */
     const targets = repsArr.map(r=>Math.min((r||ex.repMin)+1, ex.repMax));
-    hint = "Gleiches Gewicht – jeden Satz um 1 Rep schlagen. Sobald alle "+ex.repMax+" erreichen → +"+fmt(ex.increment)+" kg.";
+    hint = "Gleiches Gewicht – jeden Satz um 1 Rep schlagen. Sobald 2× in Folge alle "+ex.repMax+" erreichen → +"+fmt(ex.increment)+" kg.";
     cls = "";
     goal = "🎯 Ziel: "+targets.join(" · ")+" Reps  (letztes Mal "+repsArr.join(" · ")+").";
   }
@@ -1883,6 +1898,7 @@ function doFinish(mode){
   const _cyc = (d.type==="cardio") ? { deviation:false, cycleAt:S.cycle.completedCycles, completed:false } : cycleAdvance(d.type, d.variant||"main");
   S.sessions.push({ id:newId, type:d.type, variant:d.variant||"main", date:d.date, entries, durationMin:durMin, deviation:_cyc.deviation, cycleAt:_cyc.cycleAt, cycleCompleted:_cyc.completed });
   S.draft=null; finishAsk=false; save(); timerStop(false); releaseWake(); stopSessTimer();
+  checkCeilingExpansion();
   checkCycleDeloadTrigger();
   checkAndClaimDailyQuest();
   const hl=sessionHighlights(newId);
@@ -3518,6 +3534,20 @@ function lmPaceCompare(targetRankIdx){
   return out.sort((a,b)=>a.sessionsIn-b.sessionsIn);
 }
 /* Lunge-Leiter: automatischer Aufstieg zur nächsten Stufe (Home-Gym-Erweiterung #1) */
+function checkCeilingExpansion(){
+  for (const id of Object.keys(S.exercises)){
+    const ex=S.exercises[id]; if(!ex || ex.unit==="seconds") continue;
+    const ceiling = ex.equipment==="db" ? 36 : ex.equipment==="cable" ? 100 : Infinity;
+    if (!isFinite(ceiling)) continue;
+    const last2 = entriesFor(id,2);
+    if (last2.length<2) continue;
+    const baseKg = last2[0].entry.sets.slice(-1)[0]?.kg||0; /* most recent session's working weight */
+    const allMaxStreak = last2.every(e=>e.entry.sets.slice(0,5).every(s=>(s.reps||0)>=ex.repMax));
+    if (allMaxStreak && baseKg>=ceiling){
+      ex.repMax = Math.min(ex.repMax+3, ex.repMin+20); /* judgment call: bounded, spec gives no explicit cap */
+    }
+  }
+}
 function checkLungeLadderAdvance(){
   const activeId = LUNGE_LADDER.find(id => (S.plan.legs||[]).includes(id));
   if (!activeId) return null;
