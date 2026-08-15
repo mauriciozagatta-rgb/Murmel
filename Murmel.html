@@ -363,6 +363,7 @@ const CURRENT_VERSION = 3;
 const SEED = {
   version: CURRENT_VERSION,
   settings: { restSeconds: 90, weeklyGoal: 4, cycleLength: 4, sound: true, vibration: true },
+  cycle: { position: 0, completedCycles: 0, variant: "A" },
   bodyweight: { goalKg: 85, log: [], metrics: [] },
   plan: {
     push: ["db_flachbank","db_schraegbank","db_schulterdruecken","cable_seitheben","cable_fly","cable_trizeps"],
@@ -506,6 +507,23 @@ function migrate(raw) {
     }
   }
 
+  // --- S.cycle backfill: replay history through a fixed 3-slot push/pull/legs
+  // sequence (bonus days are a v3-only concept, never present historically) ---
+  const HIST_SEQ = ["push","pull","legs"];
+  let histPos = 0, histCycles = 0;
+  const histSessions = (raw.sessions||[])
+    .filter(s => s.type==="push" || s.type==="pull" || s.type==="legs")
+    .sort((a,b) => a.date<b.date?-1:a.date>b.date?1:(a.id<b.id?-1:1));
+  for (const s of histSessions){
+    s.variant = "main";
+    s.deviation = false; // see design note: history predates the bonus/deviation concept
+    s.cycleAt = histCycles;
+    if (s.type === HIST_SEQ[histPos]) histPos = (histPos+1) % HIST_SEQ.length;
+    else histPos = (HIST_SEQ.indexOf(s.type)+1) % HIST_SEQ.length;
+    if (histPos===0) histCycles++;
+  }
+  raw.cycle = { position: histPos, completedCycles: histCycles, variant: "A" };
+
   raw.version = CURRENT_VERSION;
   raw._migrationComplete = true;
   raw._migrationReport = {
@@ -533,6 +551,33 @@ function downloadJsonBackup(obj, filename) {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (e) { /* download best-effort — migration must not block on it */ }
+}
+
+/* ================= v3 CYCLE ================= */
+function cycleDaySequence(){
+  const len = (S.settings.cycleLength||4);
+  if (len<=3) return [{type:"push",variant:"main"},{type:"pull",variant:"main"},{type:"legs",variant:"main"}];
+  const bonusType = (S.cycle.variant==="A") ? "push" : "pull";
+  return [{type:"push",variant:"main"},{type:"pull",variant:"main"},{type:"legs",variant:"main"},{type:bonusType,variant:"bonus"}];
+}
+function cycleNextDue(){
+  const seq = cycleDaySequence();
+  return seq[S.cycle.position % seq.length];
+}
+function cycleAdvance(type, variant){
+  const seq = cycleDaySequence();
+  const idx = seq.findIndex(d=>d.type===type && d.variant===variant);
+  const deviation = idx!==S.cycle.position;
+  const cycleAt = S.cycle.completedCycles;
+  const newPos = (idx>=0 ? idx : S.cycle.position) + 1;
+  if (newPos>=seq.length){
+    S.cycle.position = 0;
+    S.cycle.completedCycles++;
+    if ((S.settings.cycleLength||4)>3) S.cycle.variant = (S.cycle.variant==="A") ? "B" : "A";
+  } else {
+    S.cycle.position = newPos;
+  }
+  return { deviation, cycleAt };
 }
 
 /* ================= STATE & STORAGE ================= */
@@ -1279,8 +1324,7 @@ function startSessTimer(){ clearInterval(sessTimerInt);
   sessTimerInt=setInterval(()=>{ const el=$("sessDur"); if(el && S.draft && S.draft.startedAt) el.textContent=fmtDur(Date.now()-S.draft.startedAt); },1000); }
 function stopSessTimer(){ clearInterval(sessTimerInt); sessTimerInt=null; }
 /* "Heute fällig" – nächster PPL-Typ (#17) */
-function dueType(){ const order=["push","pull","legs"]; const last=sortedSessions().find(s=>s.date<=todayStr());
-  if(!last) return "push"; return order[(order.indexOf(last.type)+1)%3]; }
+function dueType(){ return cycleNextDue().type; }
 /* Backup-Reminder (#50) */
 function backupOverdue(){
   const lb=S.settings.lastBackup; if(!lb) return S.sessions.length>3;
@@ -1524,12 +1568,7 @@ function todaysPlanCard(due){
   </div>`;
 }
 /* Welche PPL-Art ist an einem bestimmten Datum dran? (nächste nach der letzten davor) */
-function dueTypeForDate(date){
-  const order=["push","pull","legs"];
-  const prior=[...S.sessions].filter(s=>s.date<date).sort((a,b)=>a.date<b.date?1:-1)[0];
-  if(!prior) return "push";
-  return order[(order.indexOf(prior.type)+1)%3];
-}
+function dueTypeForDate(date){ return dueType(); }
 /* v4.1: Vorschau-Tag antippen → fällige Session starten (Mood-Picker) */
 function forecastStart(date){
   const t=dueTypeForDate(date);
@@ -1813,7 +1852,8 @@ function doFinish(mode){
   if (!entries.length){ toast("Keine Sätze erfasst"); finishAsk=false; render(); return; }
   const durMin = d.startedAt ? Math.max(1, Math.round((Date.now()-d.startedAt)/60000)) : null;
   const newId = "s"+Date.now();
-  S.sessions.push({ id:newId, type:d.type, date:d.date, entries, durationMin:durMin });
+  const _cyc = (d.type==="cardio") ? { deviation:false, cycleAt:S.cycle.completedCycles } : cycleAdvance(d.type, d.variant||"main");
+  S.sessions.push({ id:newId, type:d.type, variant:d.variant||"main", date:d.date, entries, durationMin:durMin, deviation:_cyc.deviation, cycleAt:_cyc.cycleAt });
   S.draft=null; finishAsk=false; save(); timerStop(false); releaseWake(); stopSessTimer();
   checkAndClaimDailyQuest();
   const hl=sessionHighlights(newId);
