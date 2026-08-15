@@ -366,75 +366,93 @@ const SEED = {
   cycle: { position: 0, completedCycles: 0, variant: "A" },
   bodyweight: { goalKg: 85, log: [], metrics: [] },
   plan: {
-    push: ["db_flachbank","db_schraegbank","db_schulterdruecken","cable_seitheben","cable_fly","cable_trizeps"],
+    push: ["db_flachbank","db_schulterdruecken","db_lateral_raise","cable_fly","cable_trizeps"],
     pull: ["cable_latzug","cable_rudern","db_rudern_einarmig","cable_facepulls","cable_curl","db_hammercurl"],
-    legs: ["db_goblet_squat","cable_rdl","db_stepup","lunge_l1_split_squat","cable_wadenheben","plank"]
+    legs: ["db_goblet_squat","db_rdl","db_stepup","lunge_l1_split_squat","cable_wadenheben","plank"]
   },
   exercises: {
     db_flachbank:        { name:"Flachbank KH-Drücken",       perSide:false, unit:"kg", repMin:8,  repMax:12, increment:2,  muscle:"chest",
+      equipment:"db", pulleyPos:null, ratio:null, attachment:null, benchPos:180,
       cue:"Bank flach · Ellbogen ~45° zum Körper, nicht 90°.",
       howTo:"Bank auf Position 1 (flach). KH im Liegen von den Knien hochdrücken lassen. Schulterblätter zusammenziehen und unten halten, Füße fest auf dem Boden. Unten so tief, wie Schulter schmerzfrei zulässt, oben nicht ganz durchdrücken (Spannung auf der Brust halten)." },
-    db_schraegbank:       { name:"Schrägbank KH-Drücken",     perSide:false, unit:"kg", repMin:8,  repMax:12, increment:2,  muscle:"chest",
-      cue:"Bank auf 30° – nicht steiler, sonst wird's Schulter-lastig.",
-      howTo:"Bank auf ca. 30° Neigung (2.-3. Loch je nach Bank). Gleiche Ausführung wie Flachbankdrücken, KH auf Höhe der oberen Brust starten. Bei 45°+ übernimmt zu viel die vordere Schulter." },
     db_schulterdruecken:  { name:"Schulterdrücken (KH, sitzend)", perSide:false, unit:"kg", repMin:8,  repMax:12, increment:2, muscle:"shoulders",
+      equipment:"db", pulleyPos:null, ratio:null, attachment:null, benchPos:90,
       cue:"Bank aufrecht (85–90°), Rückenlehne nutzen.",
       howTo:"Bank fast senkrecht. KH auf Schulterhöhe starten, Handflächen nach vorne. Nach oben drücken bis Arme fast gestreckt, ohne die Ellbogen komplett zu verriegeln. Unterer Rücken bleibt an der Lehne." },
-    cable_seitheben:      { name:"Kabel-Seitheben",           perSide:true,  unit:"kg", repMin:12, repMax:15, increment:1.25,    muscle:"shoulders",
-      cue:"Rolle Position 1 von 18 (ganz unten), seitlich zur Station stehen.",
-      howTo:"Rolle auf niedrigste Position, Einzelgriff. Seitlich zur Station stellen, Kabel läuft vor dem Körper zur gegenüberliegenden Hand. Arm fast gestreckt seitlich bis Schulterhöhe heben, oben kurz halten, kontrolliert runter. Leichter Cheat mit dem Oberkörper ist ok, kein Schwung aus den Beinen." },
+    db_lateral_raise:     { name:"Seitheben (KH)",             perSide:true,  unit:"kg", repMin:12, repMax:15, increment:1.25,    muscle:"shoulders",
+      equipment:"db", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
+      cue:"Leichte Ellbogenbeugung, seitlich bis Schulterhöhe heben.",
+      howTo:"Seitlich stehend, KH in beiden Händen. Arm leicht gebeugt seitlich bis Schulterhöhe heben, oben kurz halten, kontrolliert runter. Kein Schwung aus den Beinen." },
     cable_fly:            { name:"Cable Fly (Crossover)",     perSide:true,  unit:"kg", repMin:12, repMax:15, increment:2.5,  muscle:"chest",
+      equipment:"cable", pulleyPos:9, ratio:"1:1", attachment:"none", benchPos:180,
       cue:"Beide Rollen ca. Position 9–10 von 18 (Schulterhöhe, Flachbank) oder etwas höher für oberen Brustfokus — an deine Größe anpassen.",
       howTo:"Beide Rollen auf gleiche Höhe einhängen (Standard: Schulterhöhe für mittlere Brust). Handflächen zueinander, leichte Ellbogenbeugung beibehalten, Arme in einem großen Bogen vor dem Körper zusammenführen. Am Endpunkt kurz zusammendrücken, langsam zurück bis leichte Dehnung." },
     cable_trizeps:        { name:"Trizeps-Seilzug (Rope)",    perSide:false, unit:"kg", repMin:10, repMax:15, increment:1.25, muscle:"triceps",
+      equipment:"cable", pulleyPos:18, ratio:"1:1", attachment:"rope", benchPos:null,
       cue:"Rolle Position 18 von 18 (ganz oben), Seil einhängen, Ellbogen am Körper fixiert.",
       howTo:"Rolle auf höchste Position, Tau-/Seilgriff einhängen. Ellbogen eng am Oberkörper, nur der Unterarm bewegt sich. Am unteren Punkt Hände leicht auseinanderziehen für volle Kontraktion. Oberkörper nicht nach vorne fallen lassen." },
     cable_trizeps_oh:     { name:"Überkopf-Trizepsstrecken (Seil)", perSide:false, unit:"kg", repMin:10, repMax:15, increment:1.25, muscle:"triceps",
+      equipment:"cable", pulleyPos:1, ratio:"1:1", attachment:"rope", benchPos:null,
       cue:"Rolle Position 1–2 von 18 (ganz unten), mit dem Rücken zur Station, Seil über den Kopf.",
       howTo:"Rolle auf niedrigste Position. Mit dem Rücken zur Station stellen, Seil mit beiden Händen hinter dem Kopf greifen, Ellbogen zeigen nach vorne oben und bleiben fixiert. Unterarme nach vorne/oben strecken, dann kontrolliert zurück in die Dehnung." },
     cable_latzug:         { name:"Latzug (Stange)",           perSide:false, unit:"kg", repMin:8,  repMax:12, increment:5,    muscle:"back",
+      equipment:"cable", pulleyPos:18, ratio:"1:1", attachment:"straight-bar", benchPos:null,
       cue:"Rolle Position 18 von 18 (ganz oben), Latzugstange einhängen, Griff etwas breiter als schulterbreit.",
       howTo:"Stange oben einhängen, auf Bank oder Boden sitzend/kniend so positionieren, dass das Kabel senkrecht bleibt. Griff außen fassen, Brust raus, Stange zum oberen Brustbereich ziehen, Ellbogen nach unten/hinten führen. Oben kurz Schulterblätter zusammenziehen, langsam auslassen." },
     cable_rudern:         { name:"Kabelrudern (sitzend, Griffe)", perSide:false, unit:"kg", repMin:8,  repMax:12, increment:2.5, muscle:"back",
+      equipment:"cable", pulleyPos:1, ratio:"1:1", attachment:"none", benchPos:null,
       cue:"Rolle Position 1–2 von 18 (ganz unten), Bank vor der Station in Zuglinie stellen.",
       howTo:"Rolle auf niedrigste Position. Bank so vor der Station platzieren, dass du mit gestreckten Armen sitzen und ziehen kannst. Zwei Einzelgriffe verwenden, Rücken aufrecht, Griffe zum unteren Bauch ziehen, Ellbogen eng am Körper vorbei, Schulterblätter am Ende zusammenziehen." },
     db_rudern_einarmig:   { name:"Einarmiges KH-Rudern (Bankstütze)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:2, muscle:"back",
+      equipment:"db", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"Ein Knie + gleiche Hand auf der Bank, Rücken parallel zum Boden.",
       howTo:"Ein Knie und die gleichseitige Hand auf der Bank abstützen, Rücken flach und parallel zum Boden. KH mit der freien Hand zur Hüfte ziehen, Ellbogen läuft am Körper entlang nach hinten, oben kurz halten. Rumpf nicht mitdrehen." },
     cable_facepulls:      { name:"Face Pulls (Seil)",         perSide:false, unit:"kg", repMin:12, repMax:15, increment:1.25, muscle:"back",
+      equipment:"cable", pulleyPos:13, ratio:"1:1", attachment:"rope", benchPos:null,
       cue:"Rolle ca. Position 13–15 von 18 (Augen-/Stirnhöhe, je nach deiner Größe anpassen), Seil einhängen.",
       howTo:"Rolle auf Höhe der Augen/Stirn einstellen. Seilgriff mit beiden Händen (Daumen zeigen zu dir), zum Gesicht ziehen und dabei die Hände auseinanderführen, Ellbogen enden auf Schulterhöhe oder leicht darüber. Fokus auf hintere Schulter/oberen Rücken, nicht auf Bizeps." },
     cable_curl:           { name:"Kabel-Bizepscurl",          perSide:false, unit:"kg", repMin:10, repMax:15, increment:1.25, muscle:"biceps",
+      equipment:"cable", pulleyPos:1, ratio:"1:1", attachment:"straight-bar", benchPos:null,
       cue:"Rolle Position 1 von 18 (ganz unten), Seil oder Stange einhängen.",
       howTo:"Rolle auf niedrigste Position. Griff (Seil oder gerade Stange) mit Untergriff fassen, Ellbogen bleiben am Körper fixiert, nur Unterarm bewegt sich nach oben. Oben kurz zusammendrücken, kontrolliert ablassen bis fast gestreckt." },
     db_hammercurl:        { name:"Hammer Curl (KH)",          perSide:false, unit:"kg", repMin:10, repMax:15, increment:1,    muscle:"biceps",
+      equipment:"db", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"Neutraler Griff (Handflächen zeigen zueinander), Ellbogen fixiert.",
       howTo:"Stehend, KH im neutralen Griff (Daumen nach oben) halten. Ellbogen am Körper fixiert, KH nach oben curlen ohne Schwung aus der Schulter, oben kurz halten, langsam absenken." },
     db_goblet_squat:      { name:"Goblet Squat (KH, leicht)", perSide:false, unit:"kg", repMin:8,  repMax:12, increment:1,    muscle:"quads",
+      equipment:"db", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"KH senkrecht vor der Brust halten, Ellbogen zwischen die Knie führen.",
       howTo:"Eine KH senkrecht mit beiden Händen vor der Brust halten (oberes Ende). Füße schulterbreit, Zehen leicht nach außen. In die Hocke gehen, so tief wie schmerzfrei möglich – Ellbogen können innen an den Knien entlanggleiten. Ferse bleibt am Boden, Knie in Zehenrichtung. Nur so tief gehen, wie es sich stabil und schmerzfrei anfühlt – Tiefe langsam steigern, nicht das Gewicht." },
-    cable_rdl:            { name:"Kabel-Rumänisches Kreuzheben", perSide:false, unit:"kg", repMin:10, repMax:15, increment:2.5, muscle:"hamstrings",
-      cue:"Rolle Position 1 von 18 (ganz unten), mit dem Rücken zur Station stehen.",
-      howTo:"Rolle auf niedrigste Position, gerade Stange oder Seil zwischen den Beinen greifen, mit dem Rücken zur Station stehen. Knie nur leicht gebeugt, Hüfte nach hinten schieben (Rücken bleibt gerade), bis Dehnung im hinteren Oberschenkel spürbar, dann Hüfte nach vorne zurück in den Stand drücken. Kein Rundrücken." },
+    db_rdl:               { name:"Rumänisches Kreuzheben (KH)", perSide:false, unit:"kg", repMin:10, repMax:15, increment:2.5, muscle:"hamstrings",
+      equipment:"db", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
+      cue:"Knie nur leicht gebeugt, Hüfte nach hinten schieben, Rücken gerade.",
+      howTo:"KH vor den Oberschenkeln halten, mit dem Rücken zur Station stehen ist hier nicht nötig. Knie nur leicht gebeugt, Hüfte nach hinten schieben (Rücken bleibt gerade), bis Dehnung im hinteren Oberschenkel spürbar, dann Hüfte nach vorne zurück in den Stand drücken. Kein Rundrücken." },
     db_stepup:            { name:"Step-Up (KH, Bank)",        perSide:true,  unit:"kg", repMin:8,  repMax:12, increment:1,    muscle:"quads",
+      equipment:"db", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"Bank auf niedrigste/mittlere Stufe, KH locker an den Seiten.",
       howTo:"Bank auf niedrige oder mittlere Höhe stellen (nicht zu hoch – Knie sollte beim Aufsteigen keinen scharfen Winkel machen). KH in beiden Händen locker halten. Ein Fuß komplett auf die Bank, durch die Ferse nach oben drücken bis der andere Fuß oben ankommt, kontrolliert zurück. Seite wechseln." },
     cable_wadenheben:     { name:"Wadenheben (Kabel/KH)",     perSide:false, unit:"kg", repMin:12, repMax:20, increment:2.5, muscle:"other",
+      equipment:"cable", pulleyPos:1, ratio:"1:1", attachment:"none", benchPos:null,
       cue:"Vorderfuß auf einer kleinen Erhöhung (z.B. Hantelscheibe) für volle Dehnung.",
       howTo:"Auf den Fußballen stehen (Erhöhung optional für mehr ROM), KH in den Händen oder am Kabel. Ganz nach oben auf die Zehenspitzen drücken, oben kurz halten, langsam bis zur vollen Dehnung in der Ferse absenken." },
     plank:                { name:"Plank",                     perSide:false, unit:"seconds", repMin:0, repMax:0, increment:5, muscle:"core",
+      equipment:"bodyweight", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"Ellbogen unter den Schultern, Becken nicht durchhängen lassen.",
       howTo:"Unterarmstütz, Ellbogen direkt unter den Schultern. Körper bildet eine gerade Linie von Kopf bis Ferse – Po nicht hochstrecken, Hüfte nicht durchhängen lassen. Bauch und Gesäß aktiv anspannen, normal weiteratmen." },
     lunge_l1_split_squat: { name:"Lunge-Leiter L1: Split Squat (Körpergewicht, Bank-Halt)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:1, muscle:"quads",
+      equipment:"bodyweight", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"Beide Hände an der Bank/Wand zur Balance, kleiner Ausfallschritt, kontrolliert runter.",
       howTo:"Kleinen Schritt nach hinten/vorne in eine Split-Stance, Hände an Bank oder Wand für Balance (nicht zum Abstützen des Gewichts). Langsam in die Knie gehen bis eine leichte, schmerzfreie Dehnung/Beugung entsteht, dann zurück nach oben. Bewusst klein und kontrolliert – hier geht es um Bewegungsqualität, nicht Tiefe." },
     lunge_l2_reverse:     { name:"Lunge-Leiter L2: Reverse Lunge (KH, leicht)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:1, muscle:"quads",
+      equipment:"bodyweight", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"Schritt nach hinten statt nach vorne – schont die Knie beim Einstieg.",
       howTo:"Leichte KH an den Seiten. Aus dem Stand einen Schritt nach hinten setzen, hinteres Knie sinkt kontrolliert Richtung Boden (muss nicht aufsetzen), vorderes Knie über dem Fuß. Über die vordere Ferse zurück in den Stand drücken. Nur so tief wie schmerzfrei." },
     lunge_l3_forward:     { name:"Lunge-Leiter L3: Ausfallschritt vorwärts (KH)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:1, muscle:"quads",
+      equipment:"bodyweight", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"Großer Schritt nach vorne, Oberkörper aufrecht.",
       howTo:"Leichte KH an den Seiten. Großen Schritt nach vorne, beide Knie beugen sich auf ca. 90°, hinteres Knie schwebt knapp über dem Boden. Über die vordere Ferse zurück in den Stand drücken. Erst wenn L2 zwei Sessions in Folge sauber lief." },
     lunge_l4_walking:     { name:"Lunge-Leiter L4: Walking Lunge (KH)", perSide:true, unit:"kg", repMin:8, repMax:12, increment:1, muscle:"quads",
+      equipment:"bodyweight", pulleyPos:null, ratio:null, attachment:null, benchPos:null,
       cue:"Wie L3, aber durchgehend vorwärts laufend statt zurück in den Stand.",
       howTo:"Leichte KH an den Seiten. Ausfallschritt nach vorne, aber statt zurückzutreten das hintere Bein nach vorne durchschwingen in den nächsten Ausfallschritt – durchgehende Vorwärtsbewegung über den verfügbaren Raum." }
   },
@@ -1074,6 +1092,8 @@ const MUSCLES = {
   core:       {name:"Core",       mev:0,  mav:16},
   other:      {name:"Sonstige",   mev:0,  mav:99},
 };
+const ATTACHMENTS = ["V-bar","straight-bar","rope","cuffs","strap","none"];
+const BENCH_POSITIONS = [90,105,125,135,155,180,210]; // degrees; 180 = flat, 210 = decline
 const SUB_FALLBACK = {
   chest:["Liegestütze (erhöht)","Enge Liegestütze","KH-Überzug (Pullover)"],
   back:["Kabelrudern (breiter Griff)","Reverse Fly (Kabel)","Einarmiges KH-Rudern (steilerer Winkel)"],
@@ -4823,10 +4843,12 @@ function handleCsvDrop(event){
   reader.onerror=()=>{ if($("bodyCsvResult")) $("bodyCsvResult").textContent="Datei konnte nicht gelesen werden."; };
   reader.readAsText(file);
 }
+function planMembership(t,id){ return (S.plan[t]||[]).includes(id); }
 function vExEdit(){
   const id=viewArg, ex=S.exercises[id]; if(!ex) return vSettings();
   const sec = ex.unit==="seconds";
-  const inPlan = t => S.plan[t].includes(id);
+  const inPlan = t => planMembership(t,id);
+  const isCable = ex.equipment==="cable";
   return `<div class="row"><h1 class="grow">Übung</h1>
     <button class="btn ghost" onclick="go('settings')">‹ Zurück</button></div>
   <div class="card">
@@ -4858,11 +4880,46 @@ function vExEdit(){
     <div style="margin-top:14px"><b>Form-Hinweis</b><div class="mut" style="margin-bottom:8px">Eigene Technik-Notiz – erscheint beim Training (z.B. „Schulterblätter zusammen, Ellbogen 45°")</div>
       <input type="text" value="${esc(ex.cue||"")}" placeholder="Technik-Cue eingeben…" oninput="S.exercises['${id}'].cue=this.value;save()"></div>
   </div>
+  <div class="card">
+    <div style="margin-bottom:10px"><b>Ausrüstung</b></div>
+    <div class="row">
+      ${["db","cable","bodyweight"].map(eq=>`<button class="btn grow ${ex.equipment===eq?"accent":""}"
+        onclick="setEquipment('${id}','${eq}')">${eq==="db"?"Kurzhantel":eq==="cable"?"Kabelzug":"Körpergewicht"}</button>`).join("")}
+    </div>
+    <div style="margin-top:14px"><b>Bankposition</b><div class="mut" style="margin-bottom:8px">Neigung der Verstellbank, falls diese Übung eine nutzt</div>
+      <select onchange="S.exercises['${id}'].benchPos=this.value?+this.value:null;save();render()">
+        <option value="" ${ex.benchPos==null?"selected":""}>– keine –</option>
+        ${BENCH_POSITIONS.map(p=>`<option value="${p}" ${ex.benchPos===p?"selected":""}>${p}°${p===180?" (flach)":p===210?" (Negativ)":""}</option>`).join("")}
+      </select></div>
+    ${isCable?`
+    <div style="margin-top:14px"><b>Rollenposition</b><div class="mut" style="margin-bottom:8px">1 (unten) bis 18 (oben)</div>
+      <div class="step"><button onclick="stepPulley('${id}',-1)">−</button>
+        <div class="val">${ex.pulleyPos??"–"}</div>
+        <button onclick="stepPulley('${id}',1)">+</button></div></div>
+    <div style="margin-top:14px"><b>Anbauteil</b>
+      <select onchange="S.exercises['${id}'].attachment=this.value||null;save();render()">
+        <option value="" ${!ex.attachment?"selected":""}>– keins –</option>
+        ${ATTACHMENTS.map(a=>`<option value="${a}" ${ex.attachment===a?"selected":""}>${a}</option>`).join("")}
+      </select></div>
+    <div style="margin-top:14px"><b>Übersetzung</b><div class="mut" style="margin-bottom:8px">Nur zur Anzeige — das geloggte Gewicht bleibt das Gewicht am Stapel</div>
+      <div class="row">
+        ${["1:1","2:1"].map(r=>`<button class="btn grow ${ex.ratio===r?"accent":""}" onclick="S.exercises['${id}'].ratio='${r}';save();render()">${r}</button>`).join("")}
+      </div></div>`:""}
+  </div>
   <div class="card"><b>Im Plan enthalten</b>
     <div class="row" style="margin-top:10px">
       ${Object.keys(TYPES).map(t=>`<button class="btn grow ${TYPES[t].cls} ${inPlan(t)?"accent":""}"
         onclick="togglePlan('${t}','${id}')">${TYPES[t].label}</button>`).join("")}
     </div></div>`;
+}
+function setEquipment(id, eq){
+  const ex=S.exercises[id]; ex.equipment=eq;
+  if(eq!=="cable"){ ex.pulleyPos=null; ex.attachment=null; ex.ratio=null; }
+  save(); render();
+}
+function stepPulley(id, dir){
+  const ex=S.exercises[id]; const cur=ex.pulleyPos||1;
+  ex.pulleyPos=Math.max(1,Math.min(18,cur+dir)); save(); render();
 }
 function togglePlan(t,id){
   const p=S.plan[t], i=p.indexOf(id);
