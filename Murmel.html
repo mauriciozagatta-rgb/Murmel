@@ -77,6 +77,9 @@ button{font:inherit; color:var(--txt); border:none; cursor:pointer; background:t
 .btn.ghost{border-color:transparent; color:var(--mut);}
 .btn.danger{color:#FF7A70; border-color:rgba(255,69,58,.25);}
 .btn:active{transform:scale(.97);}
+/* mint primary action — app-wide chrome button (not a training-type accent) */
+.btn.mint{min-height:52px; border-radius:16px; background:var(--mint); border-color:var(--mint); color:var(--ink);
+  font-family:var(--display); font-weight:400; font-size:16px; box-shadow:0 0 24px rgba(95,227,176,.3);}
 .chip{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600;
   padding:4px 10px; border-radius:999px; border:1px solid var(--line); color:var(--mut);}
 .dot{width:7px; height:7px; border-radius:50%;}
@@ -123,17 +126,19 @@ input::placeholder{color:var(--dim);}
 .seg button{flex:1; min-height:42px; border-radius:10px; font-weight:600; color:var(--dim); font-size:13px; letter-spacing:.02em;}
 .seg button.on{background:rgba(255,255,255,.06); color:var(--txt);}
 /* tab bar */
-#tabs{position:fixed; left:0; right:0; bottom:0; background:rgba(8,9,11,.92); backdrop-filter:blur(24px);
-  border-top:1px solid var(--line); display:flex; padding:6px 4px calc(6px + env(safe-area-inset-bottom)); z-index:50;}
-#tabs button{flex:1; min-height:54px; color:var(--dim); font-size:9px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+#tabs{position:fixed; left:0; right:0; bottom:0; background:rgba(7,12,10,.96); backdrop-filter:blur(24px);
+  border-top:1px solid rgba(95,227,176,.18); display:flex; padding:6px 6px calc(20px + env(safe-area-inset-bottom)); z-index:50;}
+#tabs button{flex:1; min-height:52px; color:var(--dim); font:700 10px var(--mono); letter-spacing:.14em; text-transform:uppercase;
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; border-radius:14px;
   transition:color .18s, background .18s; position:relative; padding:4px 2px;}
-#tabs button.on{color:var(--txt); background:rgba(255,255,255,.055);}
-#tabs button.on::after{content:''; position:absolute; bottom:4px; left:50%; transform:translateX(-50%);
-  width:18px; height:3px; border-radius:2px; background:var(--acc);}
-#tabs svg{display:block; transition:transform .18s;}
+#tabs button.on{color:var(--mint); background:transparent;}
+#tabs button.on::after{content:''; position:absolute; bottom:6px; left:50%; transform:translateX(-50%);
+  width:22px; height:2px; border-radius:2px; background:var(--mint); box-shadow:0 0 8px rgba(95,227,176,.8);
+  transition:opacity .18s;}
+#tabs svg{display:block; stroke-width:2.75; transition:transform .18s;}
 #tabs button.on svg{transform:scale(1.12);}
 #tabs .tab-label{line-height:1;}
+@media (prefers-reduced-motion: reduce){ #tabs button.on svg{transform:none;} }
 /* rest timer */
 #timer{position:fixed; left:10px; right:10px; bottom:calc(82px + env(safe-area-inset-bottom));
   background:rgba(13,15,18,.97); border:1px solid var(--lineS); border-radius:18px; padding:13px 14px;
@@ -188,11 +193,18 @@ svg{max-width:100%;}
 .cal .cell.today{border:1px solid var(--lineS);}
 .cal .dots{display:flex; gap:2px; height:4px;}
 .cal .dots .d{width:4px; height:4px; border-radius:50%;}
-/* KPI grid */
-.kpis{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px;}
-.kpi{background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:14px 8px; text-align:center;}
-.kpi b{font-size:20px; display:block; font-family:var(--mono); font-weight:700;}
-.kpi span{font-size:10px; color:var(--dim); font-weight:600; letter-spacing:.05em; text-transform:uppercase;}
+/* KPI grid — telemetry strip */
+.kpis{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:rgba(95,227,176,.16);
+  border-radius:14px; overflow:hidden; margin-bottom:12px;}
+.kpi{background:var(--bg); padding:11px 11px 12px; text-align:center;}
+.kpi b{font:700 23px var(--mono); display:block;}
+.kpi span{font:9.5px var(--mono); color:var(--dim); font-weight:700; letter-spacing:.14em; text-transform:uppercase;}
+/* CSS-only streak flame */
+.flame{position:relative; display:inline-block; width:10px; height:14px; vertical-align:middle;}
+.flame::before, .flame::after{content:""; position:absolute; border-radius:60% 60% 50% 50% / 70% 70% 40% 40%;}
+.flame::before{inset:0; background:linear-gradient(180deg,#FFE9A3,#E8C547 55%,#E8794A); animation:flick 1.5s ease-in-out infinite;}
+.flame::after{width:5px; height:7px; left:2.6px; bottom:1px; background:#FFF8DE; animation:flick2 1.05s ease-in-out infinite;}
+@media (prefers-reduced-motion: reduce){ .flame::before, .flame::after{animation:none;} }
 .delta{font-weight:700; font-size:12px; font-family:var(--mono);}
 .delta.up{color:#5ED27F;} .delta.down{color:#FF8A82;} .delta.flat{color:var(--dim);}
 /* Murmel / Gamification */
@@ -300,7 +312,7 @@ svg{max-width:100%;}
 .ability-item.unlocked{opacity:1;}
 .ability-item.available{background:rgba(232,197,71,.05); border-radius:10px; padding:10px; margin:-2px -4px; border:1px solid rgba(232,197,71,.2); border-bottom:1px solid rgba(232,197,71,.2);}
 .ability-item.locked{opacity:.5;}
-.streak-flames{font-size:20px; letter-spacing:1px;}
+.streak-flames{font:700 15px var(--mono); color:var(--gold); display:inline-flex; align-items:center; gap:5px;}
 .skinrow{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
 .skinbtn{border:1px solid var(--line); border-radius:11px; padding:8px 12px; font-size:13px; font-weight:600; color:var(--mut); background:transparent;}
 .skinbtn.on{border-color:var(--lineS); color:var(--txt); background:rgba(255,255,255,.06);}
@@ -1890,7 +1902,7 @@ function vSession(){
           <button class="btn grow accent ${T.cls}" onclick="doFinish('done')">Nur ✓ speichern</button>
           <button class="btn grow" onclick="doFinish('all')">Alle speichern</button></div>
         <button class="btn full ghost" style="margin-top:8px" onclick="finishAsk=false;render()">Zurück</button></div>`
-    : `<button class="btn full accent ${T.cls}" style="min-height:56px" onclick="finishSession()">Session abschließen</button>`;
+    : `<button class="btn full mint" onclick="finishSession()">Session abschließen</button>`;
   /* v1.9: Sticky exercise chips */
   const chips = d.entries.map((e,ei)=>{
     const ex=S.exercises[e.exerciseId];
@@ -3999,7 +4011,6 @@ function vMarble(){
   const owned = (S.gami && S.gami.owned) || {};
   const coinBal = Math.max(0, g.coinsEarned - ((S.gami && S.gami.spent) || 0));
   const pctTxt = g.next ? `Noch ${fmt(g.next.min-g.effXp)} XP bis ${g.next.name}` : (g.rank.key==="legende"?"Legende erreicht — Wiedergeburt möglich":"Höchster Rang erreicht");
-  const flames = "🔥".repeat(Math.min(st.streak,8)) || "·";
   const ikone = abilities.ikone;
 
   /* Easter Egg Banner */
@@ -4213,12 +4224,12 @@ function vMarble(){
   ${coinCard}
   ${prestigeCard}
   <div class="kpis">
-    <div class="kpi"><b class="num">${cs.score}</b><span>Konsistenz</span></div>
-    <div class="kpi"><b class="num">${st.streak}</b><span>Wochen-Streak</span></div>
-    <div class="kpi"><b class="num">${se.pts}</b><span>Saison ${se.num}</span></div>
+    <div class="kpi"><b style="color:var(--gold)"><span class="flame"></span> ${String(st.streak).padStart(2,"0")}</b><span>Wochen</span></div>
+    <div class="kpi"><b style="color:var(--mint)">${cs.score}</b><span>Konsistenz</span></div>
+    <div class="kpi"><b>${se.pts}</b><span>Saison ${se.num}</span></div>
   </div>
   <div class="card">
-    <div class="row"><div class="grow"><b>Streak</b> <span class="streak-flames">${flames}</span>
+    <div class="row"><div class="grow"><b>Streak</b> <span class="streak-flames"><span class="flame"></span> ${String(st.streak).padStart(2,"0")}</span>
       <div class="mut">${st.streak} ${st.streak===1?"Woche":"Wochen"} am Stück${st.freezes?` · ${st.freezes} Freeze genutzt ❄️`:""}${st.curDone?" · diese Woche ✓":" · diese Woche "+st.curCount+"/"+st.goal}</div></div></div>
     <div class="row" style="margin-top:12px"><div class="grow"><b>Saison ${se.num}</b>
       <div class="mut num">${se.pts} P · noch ${se.daysLeft} ${se.daysLeft===1?"Tag":"Tage"}</div></div></div>
