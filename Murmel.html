@@ -13,7 +13,7 @@
 :root{
   --bg:#060708; --card:#0D0F12; --card2:#14171B; --line:rgba(255,255,255,.07); --lineS:rgba(255,255,255,.12);
   --txt:#EDEFF2; --mut:#8B93A0; --dim:#4E5560;
-  --push:#FF453A; --pull:#0A84FF; --legs:#30D158; --gold:#E8C547;
+  --push:#FF453A; --pull:#0A84FF; --legs:#30D158; --gold:#E8C547; --cardio:#2DD4C8;
   --r:18px; --pad:16px;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
 }
@@ -830,11 +830,66 @@ function cardioWeeklyCount(){
   return S.sessions.filter(s=>s.type==="cardio" && isoWeek(s.date)===wk).length;
 }
 function cardioXp(){ return S.sessions.filter(s=>s.type==="cardio").length*10; }
+function vCardioLog(){
+  if (!S._cardioDraft){
+    const t = nextCardioType();
+    const sg = suggestCardio(t);
+    S._cardioDraft = { type:t, incline:sg.incline, speed:sg.speed, duration:sg.duration, rpe:null, hint:sg.hint };
+  }
+  const d = S._cardioDraft;
+  const T = TYPES.cardio;
+  return `<div class="row"><h1 class="grow" style="color:${T.color}">Cardio ${d.type}</h1>
+    <button class="btn ghost" onclick="cancelCardioDraft()">‹ Abbrechen</button></div>
+  <p class="sub">${esc(d.hint)}</p>
+  <div class="card">
+    <div class="row"><div class="grow"><b>Steigung</b></div>
+      <div class="step"><button onclick="stepCardio('incline',-0.5)">−</button><div class="val">${d.incline}<span class="unit">%</span></div><button onclick="stepCardio('incline',0.5)">+</button></div></div>
+    <div class="row" style="margin-top:10px"><div class="grow"><b>Geschwindigkeit</b></div>
+      <div class="step"><button onclick="stepCardio('speed',-0.5)">−</button><div class="val">${fmt(d.speed)}<span class="unit">km/h</span></div><button onclick="stepCardio('speed',0.5)">+</button></div></div>
+    <div class="row" style="margin-top:10px"><div class="grow"><b>Dauer</b></div>
+      <div class="step"><button onclick="stepCardio('duration',-1)">−</button><div class="val">${d.duration}<span class="unit">min</span></div><button onclick="stepCardio('duration',1)">+</button></div></div>
+    <div class="row" style="margin-top:10px"><div class="grow"><b>RPE (1–10)</b></div>
+      <div class="step"><button onclick="stepCardio('rpe',-1)">−</button><div class="val">${d.rpe??"–"}</div><button onclick="stepCardio('rpe',1)">+</button></div></div>
+  </div>
+  <button class="btn accent full" ${d.rpe==null?"disabled":""} onclick="finishCardioLog()">Fertig</button>`;
+}
+function stepCardio(field, delta){
+  const d=S._cardioDraft; if(!d) return;
+  if (field==="rpe") d.rpe = Math.max(1, Math.min(10, (d.rpe==null?5:d.rpe)+delta));
+  else if (field==="incline") d.incline = Math.max(0, +(d.incline+delta).toFixed(1));
+  else if (field==="speed") d.speed = Math.max(0, +(d.speed+delta).toFixed(1));
+  else if (field==="duration") d.duration = Math.max(1, d.duration+delta);
+  save(); render();
+}
+function cancelCardioDraft(){ S._cardioDraft=null; go("home"); }
+function finishCardioLog(){
+  const d=S._cardioDraft; if(!d || d.rpe==null) return;
+  const id = logCardioSession(d.type, d.incline, d.speed, d.duration, d.rpe);
+  S._cardioDraft=null;
+  toast("Cardio-Session gespeichert ✓");
+  go("sessionDetail", id);
+}
+function vCardioDetail(s){
+  const T=TYPES.cardio;
+  return `<div class="row"><h1 class="grow" style="color:${T.color}">Cardio ${s.cardioType}</h1>
+    <button class="btn ghost" onclick="go('history')">‹ Zurück</button></div>
+  <div class="row" style="margin:6px 0 14px">
+    <input type="date" value="${s.date}" onchange="S.sessions.find(x=>x.id==='${s.id}').date=this.value; save();" style="max-width:180px">
+  </div>
+  <div class="card">
+    <div class="row"><div class="grow">Steigung</div><b class="num">${s.incline}%</b></div>
+    <div class="row" style="margin-top:8px"><div class="grow">Geschwindigkeit</div><b class="num">${fmt(s.speed)} km/h</b></div>
+    <div class="row" style="margin-top:8px"><div class="grow">Dauer</div><b class="num">${s.durationMin} min</b></div>
+    <div class="row" style="margin-top:8px"><div class="grow">RPE</div><b class="num">${s.rpe??"–"}</b></div>
+  </div>
+  <button class="btn full danger" onclick="delSession('${s.id}', this)">Session löschen</button>`;
+}
 
 /* ================= HELPERS ================= */
 const TYPES = { push:{label:"Push", color:"var(--push)", cls:"t-push"},
                 pull:{label:"Pull", color:"var(--pull)", cls:"t-pull"},
-                legs:{label:"Legs", color:"var(--legs)", cls:"t-legs"} };
+                legs:{label:"Legs", color:"var(--legs)", cls:"t-legs"},
+                cardio:{label:"Cardio", color:"var(--cardio)", cls:"t-cardio"} };
 /* Home-Gym-Erweiterung #8: Setup-Checkliste pro Session-Typ (ATX Cable Cross Aufbau) */
 const SETUP_CHECKLIST = {
   push: ["Seil (Rope) für Trizeps einhängen","Bank flach/30° je nach erster Übung einstellen","Beide Rollen auf Schulterhöhe für Cable Fly"],
@@ -1427,7 +1482,7 @@ function render(){
   document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on", b.dataset.v===view || (view==="session"&&b.dataset.v==="home") || (view==="sessionDetail"&&b.dataset.v==="history") || (view==="exEdit"&&b.dataset.v==="settings")));
   /* v1.9: backup-due dot on settings tab */
   const stab=$("settingsTab"); if(stab) stab.classList.toggle("backup-due", backupOverdue());
-  const fn = { home:vHome, session:vSession, history:vHistory, sessionDetail:vDetail, sessionReport:vSessionReport, charts:vCharts, report:vReport, marble:vMarble, settings:vSettings, exEdit:vExEdit, migrationReport:vMigrationReport }[view] || vHome;
+  const fn = { home:vHome, session:vSession, history:vHistory, sessionDetail:vDetail, sessionReport:vSessionReport, charts:vCharts, report:vReport, marble:vMarble, settings:vSettings, exEdit:vExEdit, migrationReport:vMigrationReport, cardioLog:vCardioLog }[view] || vHome;
   $("app").innerHTML = (memOnly?'<div class="warn">Speicher nicht verfügbar – Daten gehen beim Schließen verloren.</div>':"") + fn();
   if (view==="session" && S.draft){ acquireWake(); startSessTimer(); }
   else { releaseWake(); stopSessTimer(); }
@@ -1527,7 +1582,7 @@ function vHome(){
     ? `<span class="delta-badge ${bwDelta<-0.05?"delta-up":bwDelta>0.05?"delta-down":"delta-same"}">${bwDelta>0?"+":""}${fmt(bwDelta)} kg</span>`
     : "";
 
-  const typeCards = Object.keys(TYPES).map(t=>{
+  const typeCards = Object.keys(TYPES).filter(t=>t!=="cardio").map(t=>{
     const last = sortedSessions().find(s=>s.type===t);
     const isDue = t===due && !S.draft;
     return `<div class="card typecard ${TYPES[t].cls} ${isDue?"due-card":""}" onclick="startSession('${t}')">
@@ -1576,6 +1631,12 @@ function vHome(){
       <div class="row"><div class="grow"><b>Laufende ${TYPES[S.draft.type].label}-Session</b><div class="mut">${dLong(S.draft.date)}</div></div>
       <button class="btn accent" onclick="go('session')">Fortsetzen</button></div></div>` : todaysPlanCard(dueFull)}
   ${typeCards}
+  ${(()=>{ const ct=nextCardioType(); const csg=suggestCardio(ct); return `<div class="card" style="border-color:var(--cardio)">
+    <div class="row"><div class="grow">
+      <div class="lbl" style="color:var(--cardio)">🏃 Cardio</div>
+      <b style="font-size:17px">Session ${ct}</b>
+      <div class="mut" style="font-size:12px;margin-top:2px">${csg.incline}% · ${fmt(csg.speed)} km/h · ${csg.duration} min${cardioWeeklyCount()>=2?" · 2× diese Woche ✓":""}</div>
+    </div><button class="btn accent" onclick="go('cardioLog')">Los</button></div></div>`; })()}
   ${_deloadSuggested?`<div class="backup" style="border-color:var(--hold)"><div class="grow">😴 Murmel empfiehlt eine Deload-Woche — Recovery 3+ Tage niedrig.</div><button onclick="S.gami.deloadActive=true;save();render()">Aktivieren</button></div>`:""}
   ${S.gami.deloadActive?`<div class="backup" style="border-color:var(--hold)"><div class="grow">📉 Deload aktiv — heute ~10% weniger Gewicht, Fokus auf Technik.</div><button onclick="dismissDeload()">Beenden</button></div>`:""}
   ${(()=>{
@@ -2019,6 +2080,13 @@ function weightDeltaHtml(exId, suggestedKg){
 function vHistory(){
   const items = sortedSessions().map(s=>{
     const T=TYPES[s.type];
+    if (s.type==="cardio"){
+      return `<div class="list-item" onclick="go('sessionDetail','${s.id}')">
+        <div class="dot" style="background:${T.color}; width:9px; height:9px;"></div>
+        <div class="grow"><b>${T.label} ${s.cardioType}</b> <span class="mut num">· ${dLong(s.date)}</span>
+          <div class="mut num">${s.incline}% · ${fmt(s.speed)} km/h · ${s.durationMin} min${s.rpe!=null?" · RPE "+s.rpe:""}</div></div>
+        <div class="mut">›</div></div>`;
+    }
     return `<div class="list-item" onclick="go('sessionDetail','${s.id}')">
       <div class="dot" style="background:${T.color}; width:9px; height:9px;"></div>
       <div class="grow"><b>${T.label}</b> <span class="mut num">· ${dLong(s.date)}</span>
@@ -2031,6 +2099,7 @@ function vHistory(){
 }
 function vDetail(){
   const s = S.sessions.find(x=>x.id===viewArg); if(!s) return vHistory();
+  if (s.type==="cardio") return vCardioDetail(s);
   const si = S.sessions.indexOf(s);
   const T = TYPES[s.type];
   const cards = s.entries.map((e,ei)=>{
@@ -2319,7 +2388,7 @@ function vCharts(){
     body = `<div class="card"><div class="lbl">Wochenvolumen (kg) pro Muskelgruppe</div>
       <div style="margin-top:14px">${barChart(keys, weeks)}</div>
       <div class="row" style="margin-top:12px; justify-content:center; gap:12px">
-        ${Object.keys(TYPES).map(t=>`<span class="chip"><span class="dot" style="background:${TYPES[t].color}"></span>${TYPES[t].label}</span>`).join("")}
+        ${Object.keys(TYPES).filter(t=>t!=="cardio").map(t=>`<span class="chip"><span class="dot" style="background:${TYPES[t].color}"></span>${TYPES[t].label}</span>`).join("")}
       </div></div>`;
   }
   if (chartTab==="mus"){
@@ -2654,7 +2723,7 @@ function monthReport(){
       <button class="btn ghost" onclick="repNav(1)" style="font-size:19px">›</button></div>
     <div class="cal">${cells}</div>
     <div class="row" style="margin-top:12px; justify-content:center; gap:10px">
-      ${Object.keys(TYPES).map(t=>`<span class="chip"><span class="dot" style="background:${TYPES[t].color}"></span>${TYPES[t].label} <span class="num">${counts[t]}×</span></span>`).join("")}
+      ${Object.keys(TYPES).filter(t=>t!=="cardio").map(t=>`<span class="chip"><span class="dot" style="background:${TYPES[t].color}"></span>${TYPES[t].label} <span class="num">${counts[t]}×</span></span>`).join("")}
     </div></div>
   <div class="kpis">
     <div class="kpi"><b>${inMonth.length}</b><span>Sessions</span></div>
