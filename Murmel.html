@@ -781,6 +781,56 @@ function syncStatusLine(){
   return `<span class="sdot ${gConnected()?"":"off"}"></span>${gConnected()?"Mit Google verbunden":"Nicht verbunden"} · Letzter Sync: ${lastTxt}`;
 }
 
+/* ================= v3 CARDIO (standalone — no fixed day, no cycle/PPL interaction) ================= */
+const CARDIO_SESSIONS = {
+  A: { inclineMin:5, inclineMax:6, speedMin:4.5, speedMax:5.5, durationMin:25, durationMax:25 },
+  B: { inclineMin:8, inclineMax:10, speedMin:4, speedMax:4.5, durationMin:25, durationMax:30 },
+};
+function lastCardioEntry(cardioType){
+  /* "most recent" = last one appended to S.sessions, not a date-sort — two sessions
+     logged on the same calendar date would otherwise tie on date and fall back to
+     array order, which is oldest-first and picks the wrong entry. */
+  const matches = S.sessions.filter(s=>s.type==="cardio" && s.cardioType===cardioType);
+  return matches.length ? matches[matches.length-1] : null;
+}
+function nextCardioType(){
+  const matches = S.sessions.filter(s=>s.type==="cardio");
+  const last = matches.length ? matches[matches.length-1] : null;
+  return (!last || last.cardioType==="B") ? "A" : "B";
+}
+function suggestCardio(cardioType){
+  const def = CARDIO_SESSIONS[cardioType];
+  const last = lastCardioEntry(cardioType);
+  if (!last) return { incline:def.inclineMin, speed:def.speedMin, duration:def.durationMin, hint:"Erste "+cardioType+"-Session – Startwerte." };
+  let incline=last.incline, speed=last.speed, duration=last.durationMin;
+  let hint = "Gleiches Niveau halten — RPE war "+(last.rpe??"–")+".";
+  if (last.rpe!=null && last.rpe>=4 && last.rpe<=5){
+    const countSoFar = S.sessions.filter(s=>s.type==="cardio"&&s.cardioType===cardioType).length;
+    const canBumpIncline = incline<10;
+    const preferIncline = (countSoFar%2===0);
+    if (preferIncline && canBumpIncline){
+      incline = Math.min(10, +(incline+0.5).toFixed(1));
+      hint = "RPE "+last.rpe+" — Steigung +0.5% auf "+incline+"%.";
+    } else {
+      duration = duration+2;
+      hint = "RPE "+last.rpe+" — Dauer +2min auf "+duration+"min.";
+    }
+  }
+  return { incline, speed, duration, hint };
+}
+function logCardioSession(cardioType, incline, speed, duration, rpe){
+  const newId="s"+Date.now();
+  S.sessions.push({ id:newId, type:"cardio", cardioType, variant:"main", date:todayStr(), entries:[],
+    durationMin:duration, incline, speed, rpe, deviation:false, cycleAt:S.cycle.completedCycles, cycleCompleted:false });
+  save();
+  return newId;
+}
+function cardioWeeklyCount(){
+  const wk=isoWeek(todayStr());
+  return S.sessions.filter(s=>s.type==="cardio" && isoWeek(s.date)===wk).length;
+}
+function cardioXp(){ return S.sessions.filter(s=>s.type==="cardio").length*10; }
+
 /* ================= HELPERS ================= */
 const TYPES = { push:{label:"Push", color:"var(--push)", cls:"t-push"},
                 pull:{label:"Pull", color:"var(--pull)", cls:"t-pull"},
@@ -2695,6 +2745,7 @@ function computeGami(){
   let coinsEarned=0;
   const per=[];
   for (const s of sorted){
+    if (s.type==="cardio") continue; /* cardio has its own XP track (Task 6) — never mixes into strength XP */
     const bd={consistency:10, progression:0, pr:0, weekly:0};
     for (const e of s.entries){
       const ex=S.exercises[e.exerciseId]; if(!ex || !e.sets.length) continue;
@@ -3062,7 +3113,7 @@ function skinsUnlocked(g=computeGami()){
 
 /* Bonus-XP aus Sessions (Sätze, Konsistenz) */
 function sessionXpBonus(){
-  const sess=[...S.sessions].filter(s=>s.date<=todayStr());
+  const sess=[...S.sessions].filter(s=>s.date<=todayStr() && s.type!=="cardio");
   let xp=0;
   const weekMap={};
   for(const s of sess){
@@ -4108,7 +4159,7 @@ function weeklyChallenge(g){
   return wc;
 }
 function weeklyChallengeProgress(wc,g){
-  const inWindow = s => s.cycleAt===wc.weekKey;
+  const inWindow = s => s.cycleAt===wc.weekKey && s.type!=="cardio";
   const tw=g.per.filter(p=>{ const s=S.sessions.find(x=>x.id===p.id); return s && inWindow(s); });
   const tws=S.sessions.filter(inWindow);
   if(wc.key==="improve3") return tw.reduce((n,p)=>n+(p.bd.progression>0?1:0),0);
