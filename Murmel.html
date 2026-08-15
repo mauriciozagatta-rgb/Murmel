@@ -359,9 +359,10 @@ svg{max-width:100%;}
 })();
 
 /* ================= SEED DATA (Home Gym Edition – frischer Start, Verlauf geleert) ================= */
+const CURRENT_VERSION = 3;
 const SEED = {
-  version: 2,
-  settings: { restSeconds: 90, weeklyGoal: 4, sound: true, vibration: true },
+  version: CURRENT_VERSION,
+  settings: { restSeconds: 90, weeklyGoal: 4, cycleLength: 4, sound: true, vibration: true },
   bodyweight: { goalKg: 85, log: [], metrics: [] },
   plan: {
     push: ["db_flachbank","db_schraegbank","db_schulterdruecken","cable_seitheben","cable_fly","cable_trizeps"],
