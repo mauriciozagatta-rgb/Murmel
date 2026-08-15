@@ -13,7 +13,7 @@
 :root{
   --bg:#060708; --card:#0D0F12; --card2:#14171B; --line:rgba(255,255,255,.07); --lineS:rgba(255,255,255,.12);
   --txt:#EDEFF2; --mut:#8B93A0; --dim:#4E5560;
-  --push:#FF453A; --pull:#0A84FF; --legs:#30D158; --gold:#E8C547; --cardio:#2DD4C8;
+  --push:#FF453A; --pull:#0A84FF; --legs:#30D158; --gold:#E8C547; --cardio:#22D3C5;
   --r:18px; --pad:16px;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
 }
@@ -26,7 +26,7 @@ body{padding-bottom:calc(86px + env(safe-area-inset-bottom));}
 h1{font-size:23px; font-weight:700; letter-spacing:-.01em; margin:8px 0 2px;}
 h2{font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); margin:26px 0 10px;}
 .sub{color:var(--dim); font-size:13px; margin:0 0 16px;}
-.lbl{font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--dim);}
+.lbl{font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--dim);}
 .card{background:var(--card); border:1px solid var(--line); border-radius:var(--r); padding:16px; margin-bottom:12px;
   animation:fade .25s ease;}
 @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
@@ -52,6 +52,7 @@ button{font:inherit; color:var(--txt); border:none; cursor:pointer; background:t
 .t-push{--acc:var(--push); --accA:rgba(255,69,58,.12); --accB:rgba(255,69,58,.35);}
 .t-pull{--acc:var(--pull); --accA:rgba(10,132,255,.12); --accB:rgba(10,132,255,.35);}
 .t-legs{--acc:var(--legs); --accA:rgba(48,209,88,.12); --accB:rgba(48,209,88,.35);}
+.t-cardio{--acc:var(--cardio); --accA:rgba(34,211,197,.12); --accB:rgba(34,211,197,.35);}
 .typecard{padding:18px 16px;}
 .typecard .tname{font-size:17px; font-weight:700; display:flex; align-items:center; gap:9px;}
 .typecard .tname .dot{width:9px; height:9px; background:var(--acc);}
@@ -814,6 +815,11 @@ const CARDIO_SESSIONS = {
   A: { inclineMin:5, inclineMax:6, speedMin:4.5, speedMax:5.5, durationMin:25, durationMax:25 },
   B: { inclineMin:8, inclineMax:10, speedMin:4, speedMax:4.5, durationMin:25, durationMax:30 },
 };
+function inclineMotifSvg(){
+  return `<svg width="28" height="16" viewBox="0 0 28 16" aria-hidden="true" style="vertical-align:middle">
+    <polyline points="1,15 10,9 19,10 27,2" fill="none" stroke="var(--cardio)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
 function lastCardioEntry(cardioType){
   /* "most recent" = last one appended to S.sessions, not a date-sort — two sessions
      logged on the same calendar date would otherwise tie on date and fall back to
@@ -866,7 +872,7 @@ function vCardioLog(){
   }
   const d = S._cardioDraft;
   const T = TYPES.cardio;
-  return `<div class="row"><h1 class="grow" style="color:${T.color}">Cardio ${d.type}</h1>
+  return `<div class="row"><h1 class="grow" style="color:${T.color}">${inclineMotifSvg()} Cardio ${d.type}</h1>
     <button class="btn ghost" onclick="cancelCardioDraft()">‹ Abbrechen</button></div>
   <p class="sub">${esc(d.hint)}</p>
   <div class="card">
@@ -899,7 +905,7 @@ function finishCardioLog(){
 }
 function vCardioDetail(s){
   const T=TYPES.cardio;
-  return `<div class="row"><h1 class="grow" style="color:${T.color}">Cardio ${s.cardioType}</h1>
+  return `<div class="row"><h1 class="grow" style="color:${T.color}">${inclineMotifSvg()} Cardio ${s.cardioType}</h1>
     <button class="btn ghost" onclick="go('history')">‹ Zurück</button></div>
   <div class="row" style="margin:6px 0 14px">
     <input type="date" value="${s.date}" onchange="S.sessions.find(x=>x.id==='${s.id}').date=this.value; save();" style="max-width:180px">
@@ -1661,7 +1667,7 @@ function vHome(){
   ${typeCards}
   ${(()=>{ const ct=nextCardioType(); const csg=suggestCardio(ct); return `<div class="card" style="border-color:var(--cardio)">
     <div class="row"><div class="grow">
-      <div class="lbl" style="color:var(--cardio)">🏃 Cardio</div>
+      <div class="lbl" style="color:var(--cardio)">${inclineMotifSvg()} Cardio</div>
       <b style="font-size:17px">Session ${ct}</b>
       <div class="mut" style="font-size:12px;margin-top:2px">${csg.incline}% · ${fmt(csg.speed)} km/h · ${csg.duration} min${cardioWeeklyCount()>=2?" · 2× diese Woche ✓":""}</div>
     </div><button class="btn accent" onclick="go('cardioLog')">Los</button></div></div>`; })()}
