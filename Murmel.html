@@ -441,6 +441,100 @@ const SEED = {
   draft: null
 };
 
+/* ================= v3 MIGRATION ================= */
+const EXERCISE_ID_ALIASES = {
+  cable_seitheben: "db_lateral_raise",
+  cable_rdl: "db_rdl",
+};
+const EXERCISE_IDS_REMOVED = new Set(["db_schraegbank"]);
+
+function migrate(raw) {
+  if (!raw || typeof raw !== "object") return { state: raw, report: null };
+  if ((raw.version || 0) >= CURRENT_VERSION) return { state: raw, report: null };
+
+  raw._migrationComplete = false;
+  raw._backup_v2 = JSON.parse(JSON.stringify(raw)); // full pre-migration snapshot, kept until the report is dismissed
+  downloadJsonBackup(raw, "murmel-backup-v" + (raw.version || 2) + "-" + todayStr() + ".json");
+
+  raw._orphaned = raw._orphaned || [];
+  const aliasedNames = [];
+  const quarantinedIds = [];
+  let sessionsCount = 0;
+
+  const resolve = id => {
+    if (raw.exercises && raw.exercises[id]) return id; // custom or still-valid ID — case 2, pass through
+    if (EXERCISE_ID_ALIASES[id]) return EXERCISE_ID_ALIASES[id]; // case 1
+    return null; // case 3
+  };
+
+  for (const [oldId, newId] of Object.entries(EXERCISE_ID_ALIASES)) {
+    if (raw.exercises && raw.exercises[oldId] && !raw.exercises[newId]) {
+      raw.exercises[newId] = { ...raw.exercises[oldId] };
+      delete raw.exercises[oldId];
+      aliasedNames.push(oldId + " → " + newId);
+    }
+  }
+  for (const oldId of EXERCISE_IDS_REMOVED) {
+    if (raw.exercises && raw.exercises[oldId]) delete raw.exercises[oldId];
+  }
+
+  for (const sess of raw.sessions || []) {
+    sessionsCount++;
+    const keptEntries = [];
+    for (const entry of sess.entries || []) {
+      const resolved = resolve(entry.exerciseId) ||
+        (EXERCISE_ID_ALIASES[entry.exerciseId] ? EXERCISE_ID_ALIASES[entry.exerciseId] : null);
+      if (resolved && raw.exercises && raw.exercises[resolved]) {
+        if (resolved !== entry.exerciseId) entry.exerciseId = resolved;
+        keptEntries.push(entry);
+      } else {
+        raw._orphaned.push({ sessionId: sess.id, date: sess.date, exerciseId: entry.exerciseId, entry });
+        quarantinedIds.push(entry.exerciseId);
+      }
+    }
+    sess.entries = keptEntries;
+  }
+
+  if (raw.plan) {
+    for (const list of Object.values(raw.plan)) {
+      if (!Array.isArray(list)) continue;
+      for (let i = list.length - 1; i >= 0; i--) {
+        const id = list[i];
+        if (EXERCISE_ID_ALIASES[id]) list[i] = EXERCISE_ID_ALIASES[id];
+        else if (EXERCISE_IDS_REMOVED.has(id)) list.splice(i, 1);
+      }
+    }
+  }
+
+  raw.version = CURRENT_VERSION;
+  raw._migrationComplete = true;
+  raw._migrationReport = {
+    at: Date.now(),
+    sessionsCount,
+    aliasedCount: aliasedNames.length,
+    quarantinedCount: quarantinedIds.length,
+    aliasedNames,
+    quarantinedIds,
+  };
+  raw._migrationReportDismissed = false;
+
+  return { state: raw, report: raw._migrationReport };
+}
+
+function downloadJsonBackup(obj, filename) {
+  try {
+    const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (e) { /* download best-effort — migration must not block on it */ }
+}
+
 /* ================= STATE & STORAGE ================= */
 const KEY = "ppl:v2";
 let S = null, view = "home", viewArg = null, memOnly = false, saveT = null;
@@ -450,7 +544,12 @@ async function loadState(){
   if (!window.storage){ memOnly = true; S = SEED; return; }
   try {
     const res = await window.storage.get(KEY, false);
-    if (res && res.value){ S = JSON.parse(res.value); return; }
+    if (res && res.value){
+      S = JSON.parse(res.value);
+      const { report } = migrate(S);
+      if (report) await persist(true);
+      return;
+    }
   } catch(e){ /* Key existiert noch nicht → Erstimport */ }
   S = SEED;
   await persist(true);
@@ -554,13 +653,25 @@ async function cloudPush(silent){
     if(!silent){ toast("In Cloud gesichert ✓"); render(); } return true; }
   catch(e){ if(!silent) toast("Sync-Fehler: "+e.message); return false; }
 }
+function checkVersionOrPrompt(parsed, opts){
+  opts = opts || {};
+  const local = (S && S.version) || 0, incoming = parsed.version || 0;
+  if (incoming === local) return true;
+  const msg = incoming > local
+    ? "Cloud-Daten haben ein neueres Datenformat (v"+incoming+" vs. lokal v"+local+"). Diese Version der App könnte veraltet sein.\n\nTrotzdem laden?"
+    : "Cloud-Daten haben ein älteres Datenformat (v"+incoming+" vs. lokal v"+local+"). Laden könnte lokale Fortschritte überschreiben, bis das andere Gerät aktualisiert.\n\nTrotzdem laden?";
+  /* A version mismatch NEVER resolves silently, even during silent auto-sync — force the blocking prompt. */
+  if (typeof confirm !== "function") return false;
+  return confirm(msg);
+}
 async function cloudPull(silent){
   const t=await gToken(!silent); if(!t){ if(!silent) toast("Erst mit Google verbinden"); return false; }
   try{
     const f=await driveFind(t); if(!f){ if(!silent) toast("Keine Cloud-Daten gefunden"); return false; }
     const parsed=JSON.parse(await driveDownload(t,f.id));
     if(!parsed||!parsed.sessions||!parsed.exercises){ if(!silent) toast("Cloud-Daten ungültig"); return false; }
-    S=parsed; lsx("gFileId",f.id); lsx("lastSync",String(Date.now())); await persist(true);
+    if(!checkVersionOrPrompt(parsed)) return false;
+    S=parsed; migrate(S); lsx("gFileId",f.id); lsx("lastSync",String(Date.now())); await persist(true);
     if(!silent){ toast("Aus Cloud geladen ✓"); go("home"); } else render(); return true;
   }catch(e){ if(!silent) toast("Sync-Fehler: "+e.message); return false; }
 }
@@ -572,9 +683,12 @@ async function cloudSync(silent){
     let cloud=null; try{ cloud=JSON.parse(await driveDownload(t,f.id)); }catch(_){}
     lsx("gFileId",f.id);
     const cT=(cloud&&cloud.updatedAt)||0, lT=(S&&S.updatedAt)||0;
+    if(cloud && (cloud.version||0) !== ((S&&S.version)||0)){
+      if(!checkVersionOrPrompt(cloud)) return false;
+    }
     if(cT>lT){
-      if(!silent && typeof confirm==="function" && !confirm("Cloud-Daten sind neuer (Gerät: "+((cloud&&cloud.lastDevice)||"?")+", "+new Date(cT).toLocaleString("de-DE")+").\n\nLokale Daten überschreiben?")) return false;
-      if(cloud){ S=cloud; lsx("lastSync",String(Date.now())); await persist(true); if(!silent){ toast("Aus Cloud aktualisiert ✓"); go("home"); } else render(); return true; }
+      if(!silent && typeof confirm==="function" && (cloud.version||0)===((S&&S.version)||0) && !confirm("Cloud-Daten sind neuer (Gerät: "+((cloud&&cloud.lastDevice)||"?")+", "+new Date(cT).toLocaleString("de-DE")+").\n\nLokale Daten überschreiben?")) return false;
+      if(cloud){ S=cloud; migrate(S); lsx("lastSync",String(Date.now())); await persist(true); if(!silent){ toast("Aus Cloud aktualisiert ✓"); go("home"); } else render(); return true; }
       return false;
     } else if(lT>cT){ return await cloudPush(silent); }
     else { lsx("lastSync",String(Date.now())); if(!silent) toast("Bereits synchron ✓"); render(); return true; }
@@ -585,6 +699,7 @@ let _autoPushT=null;
 function scheduleAutoPush(){
   if(!autoSyncOn() || !gClientId()) return;
   if(typeof navigator!=="undefined" && navigator.onLine===false) return;
+  if(S && S._migrationComplete===false) return; /* never push a half-migrated S */
   clearTimeout(_autoPushT); _autoPushT=setTimeout(()=>cloudPush(true), 4000);
 }
 /* Beim App-Start einmal abgleichen (wartet, bis GIS-Bibliothek geladen ist) */
@@ -1179,7 +1294,7 @@ function render(){
   document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("on", b.dataset.v===view || (view==="session"&&b.dataset.v==="home") || (view==="sessionDetail"&&b.dataset.v==="history") || (view==="exEdit"&&b.dataset.v==="settings")));
   /* v1.9: backup-due dot on settings tab */
   const stab=$("settingsTab"); if(stab) stab.classList.toggle("backup-due", backupOverdue());
-  const fn = { home:vHome, session:vSession, history:vHistory, sessionDetail:vDetail, sessionReport:vSessionReport, charts:vCharts, report:vReport, marble:vMarble, settings:vSettings, exEdit:vExEdit }[view] || vHome;
+  const fn = { home:vHome, session:vSession, history:vHistory, sessionDetail:vDetail, sessionReport:vSessionReport, charts:vCharts, report:vReport, marble:vMarble, settings:vSettings, exEdit:vExEdit, migrationReport:vMigrationReport }[view] || vHome;
   $("app").innerHTML = (memOnly?'<div class="warn">Speicher nicht verfügbar – Daten gehen beim Schließen verloren.</div>':"") + fn();
   if (view==="session" && S.draft){ acquireWake(); startSessTimer(); }
   else { releaseWake(); stopSessTimer(); }
@@ -1191,6 +1306,25 @@ function render(){
       if (fu) fu.scrollIntoView({block:"center"}); else window.scrollTo(0,0);
     } else window.scrollTo(0,0);
   }
+}
+function vMigrationReport(){
+  const r = S._migrationReport || {};
+  return `<div class="card">
+    <h1>Update abgeschlossen</h1>
+    <p class="sub">Murmel wurde auf das neue Trainingsformat (v${CURRENT_VERSION}) aktualisiert.</p>
+    <div class="row"><div class="grow">Sessions durchgesehen</div><b class="num">${r.sessionsCount||0}</b></div>
+    <div class="row"><div class="grow">Übungen umbenannt</div><b class="num">${r.aliasedCount||0}</b></div>
+    <div class="row"><div class="grow">Nicht zuordenbare Einträge</div><b class="num">${r.quarantinedCount||0}</b></div>
+    ${r.quarantinedCount ? `<p class="mut">Diese Einträge wurden nicht gelöscht, sondern in einem separaten Bereich (<code>_orphaned</code>) aufbewahrt — nichts geht verloren.</p>` : ""}
+    <p class="mut">Eine Sicherungskopie deiner Daten vor dem Update wurde als Datei heruntergeladen.</p>
+    <button class="btn accent full" onclick="dismissMigrationReport()">Verstanden</button>
+  </div>`;
+}
+function dismissMigrationReport(){
+  S._migrationReportDismissed = true;
+  delete S._backup_v2;
+  save();
+  go("home");
 }
 
 /* ---------- HOME ---------- */
@@ -4699,6 +4833,7 @@ function togglePlan(t,id){
 /* ================= INIT ================= */
 (async function(){
   await loadState();
+  if (S._migrationReport && !S._migrationReportDismissed){ view = "migrationReport"; }
   if (S.draft && !S.draft.startedAt) S.draft.startedAt = Date.now(); /* v1.4 */
   if (!S.gami) S.gami = { skin:null }; /* v1.5 */
   /* v1.8: XP / Fähigkeiten / Easter Eggs */
